@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { getTeam, saveTeam, initials, memberColor } from '../lib/team.js'
 import {
@@ -9,6 +9,7 @@ import {
   clearCredentials,
   isConnected,
   getConnectedCount,
+  verifyConnection,
 } from '../lib/credentials.js'
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function StatusBadge({ connected }) {
@@ -24,21 +25,121 @@ function StatusBadge({ connected }) {
   )
 }
 
-// ── Connect / Edit modal ────────────────────────────────────────────────────
+// ── Error popup ──────────────────────────────────────────────────────────────
+function ErrorPopup({ integration, errorMsg, onRetry, onSaveAnyway, onClose }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1100,
+      background: 'rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '1rem',
+    }}>
+      <div style={{
+        background: 'var(--surface-2)', borderRadius: 'var(--radius-lg)',
+        width: '100%', maxWidth: 440, boxShadow: 'var(--shadow-lg)',
+        overflow: 'hidden', animation: 'fadeIn 0.15s ease',
+      }}>
+        {/* Red header */}
+        <div style={{ background: '#dc2626', padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+            ⚠
+          </div>
+          <div>
+            <div style={{ fontFamily: 'var(--font-heading)', color: '#fff', fontSize: 14, letterSpacing: '0.05em' }}>
+              CONNECTION FAILED
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>
+              {integration.label} could not be verified
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '1.5rem' }}>
+          <div style={{
+            background: '#fef2f2', borderRadius: 'var(--radius)',
+            border: '1px solid #fecaca', padding: '12px 14px',
+            fontSize: 13, color: '#7f1d1d', lineHeight: 1.7, marginBottom: '1.25rem',
+          }}>
+            {errorMsg}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: '0.5rem' }}>
+            <strong style={{ color: 'var(--text-secondary)' }}>Common fixes:</strong>
+            <ul style={{ margin: '6px 0 0 0', paddingLeft: '1.2rem' }}>
+              <li>Double-check the key was copied in full (no trailing spaces)</li>
+              <li>Make sure the key has the required permissions</li>
+              <li>Confirm the key hasn't been revoked or expired</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '1rem 1.5rem', borderTop: '1px solid var(--border)',
+          background: 'var(--surface-3)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+        }}>
+          <button onClick={onSaveAnyway} style={{
+            fontSize: 12, padding: '7px 14px', borderRadius: 6,
+            border: '1px solid var(--border-mid)', background: 'var(--surface-2)',
+            color: 'var(--text-secondary)', cursor: 'pointer',
+          }}>
+            Save Anyway
+          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={onClose} style={{
+              fontSize: 12, padding: '7px 14px', borderRadius: 6,
+              border: '1px solid var(--border-mid)', background: 'var(--surface-2)',
+              color: 'var(--text-secondary)', cursor: 'pointer',
+            }}>
+              Cancel
+            </button>
+            <button onClick={onRetry} style={{
+              fontSize: 12, padding: '7px 18px', borderRadius: 6, border: 'none',
+              background: '#dc2626', color: '#fff', cursor: 'pointer',
+              fontWeight: 700, letterSpacing: '0.04em',
+            }}>
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Connect / Edit modal ─────────────────────────────────────────────────────
 function ConnectModal({ serviceKey, integration, onClose, onSave }) {
   const existing = getCredentials(serviceKey) || {}
   const [values, setValues] = useState(
     Object.fromEntries(integration.fields.map(f => [f.key, existing[f.key] ?? '']))
   )
   const [showValues, setShowValues] = useState({})
-  const [saving, setSaving] = useState(false)
-  const handleSave = () => {
+  const [saving, setSaving]         = useState(false)
+  const [errorPopup, setErrorPopup] = useState(null) // { message }
+  const [warning, setWarning]       = useState(null)
+
+  const connected = isConnected(serviceKey)
+  const canSave   = integration.fields.some(f => values[f.key]?.trim())
+
+  const commitSave = useCallback(() => {
+    saveCredentials(serviceKey, values)
+    onSave()
+    onClose()
+  }, [serviceKey, values, onSave, onClose])
+
+  const handleSave = async () => {
+    if (!canSave) return
     setSaving(true)
-    setTimeout(() => {
-      saveCredentials(serviceKey, values)
-      onSave()
-      onClose()
-    }, 400)
+    setWarning(null)
+    const result = await verifyConnection(serviceKey, values)
+    setSaving(false)
+    if (!result.ok) {
+      setErrorPopup({ message: result.error || 'Verification failed. Check your credentials and try again.' })
+      return
+    }
+    if (result.warning) setWarning(result.warning)
+    commitSave()
   }
 
   const handleDisconnect = () => {
@@ -47,176 +148,142 @@ function ConnectModal({ serviceKey, integration, onClose, onSave }) {
     onClose()
   }
 
-  const connected = isConnected(serviceKey)
-  const canSave = integration.fields.some(f => values[f.key]?.trim())
-
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      background: 'rgba(0,0,0,0.45)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '1rem',
-    }} onClick={e => e.target === e.currentTarget && onClose()}>
+    <>
       <div style={{
-        background: 'var(--white)', borderRadius: 'var(--radius-lg)',
-        width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-        overflow: 'hidden',
-      }}>
-        {/* Header */}
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'rgba(0,0,0,0.45)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '1rem',
+      }} onClick={e => e.target === e.currentTarget && !saving && onClose()}>
         <div style={{
-          background: 'var(--navy)', padding: '1.25rem 1.5rem',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'var(--surface-2)', borderRadius: 'var(--radius-lg)',
+          width: '100%', maxWidth: 500,
+          boxShadow: 'var(--shadow-lg)', overflow: 'hidden',
+          maxHeight: '90vh', display: 'flex', flexDirection: 'column',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22 }}>{integration.icon}</span>
-            <div>
-              <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--white)', fontSize: 15, letterSpacing: '0.05em' }}>
-                {integration.label.toUpperCase()}
+          {/* Header */}
+          <div style={{ background: 'var(--navy)', padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: `${integration.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+                {integration.icon}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 1 }}>{integration.desc}</div>
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--gray-400)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
-        </div>
-
-        {/* Body */}
-        <div style={{ padding: '1.5rem' }}>
-          {/* Help link */}
-          <div style={{
-            background: 'var(--gray-50)', borderRadius: 'var(--radius)',
-            padding: '10px 14px', marginBottom: '1.25rem',
-            fontSize: 12, color: 'var(--gray-600)', lineHeight: 1.6,
-            borderLeft: `3px solid ${integration.color}`,
-          }}>
-            <strong>Where to find this:</strong>{' '}
-            {integration.helpText}
-            {' '}<a href={integration.helpUrl} target="_blank" rel="noreferrer" style={{ color: integration.color }}>View guide →</a>
-          </div>
-
-          {/* Optional note */}
-          {integration.note && (
-            <div style={{
-              background: '#fffbeb', borderRadius: 'var(--radius)',
-              padding: '10px 14px', marginBottom: '1.25rem',
-              fontSize: 12, color: '#92400e', lineHeight: 1.6,
-              borderLeft: '3px solid #fde68a',
-            }}>
-              ℹ {integration.note}
-            </div>
-          )}
-
-          {/* Fields */}
-          {integration.fields.map(field => (
-            <div key={field.key} style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--navy)', marginBottom: 5, letterSpacing: '0.03em' }}>
-                {field.label}
-              </label>
-              {field.helpNote && (
-                <div style={{ fontSize: 11, color: '#2563EB', background: '#EFF6FF', padding: '6px 10px', borderRadius: 6, marginBottom: 6, lineHeight: 1.5, fontFamily: 'monospace' }}>
-                  {field.helpNote}
+              <div>
+                <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--white)', fontSize: 14, letterSpacing: '0.05em' }}>
+                  {integration.label.toUpperCase()}
                 </div>
-              )}
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={field.type === 'password' && !showValues[field.key] ? 'password' : 'text'}
-                  value={values[field.key]}
-                  onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))}
-                  placeholder={field.placeholder}
-                  style={{
-                    width: '100%', padding: '9px 36px 9px 12px',
-                    border: '1.5px solid var(--gray-200)', borderRadius: 'var(--radius)',
-                    fontSize: 13, color: 'var(--navy)', background: 'var(--white)',
-                    outline: 'none', boxSizing: 'border-box',
-                    fontFamily: values[field.key] && field.type === 'password' && !showValues[field.key]
-                      ? 'monospace' : 'inherit',
-                  }}
-                  onFocus={e => e.target.style.borderColor = integration.color}
-                  onBlur={e => e.target.style.borderColor = 'var(--gray-200)'}
-                />
-                {field.type === 'password' && values[field.key] && (
-                  <button
-                    onClick={() => setShowValues(s => ({ ...s, [field.key]: !s[field.key] }))}
-                    style={{
-                      position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 13, color: 'var(--gray-400)',
-                    }}
-                  >
-                    {showValues[field.key] ? '🙈' : '👁'}
-                  </button>
-                )}
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{integration.desc}</div>
               </div>
             </div>
-          ))}
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          </div>
 
-          {/* Test Connection — shown for integrations that support it (e.g. Notion) */}
-          {integration.testable && values.apiKey?.trim() && (
-            <div style={{ marginTop: '0.75rem', marginBottom: '0.25rem' }}>
-              <button
-                onClick={handleTestNotion}
-                disabled={testState.loading}
-                style={{
-                  fontSize: 12, padding: '7px 16px', borderRadius: 6,
-                  border: `1.5px solid ${integration.color}`,
-                  background: 'var(--white)', color: integration.color,
-                  cursor: testState.loading ? 'default' : 'pointer', fontWeight: 600,
-                  opacity: testState.loading ? 0.7 : 1,
-                }}
-              >
-                {testState.loading ? '⟳ Testing…' : '◻ Test Connection'}
-              </button>
-              {testState.result && (
-                <span style={{ fontSize: 12, color: '#059669', fontWeight: 600, marginLeft: 10 }}>{testState.result}</span>
-              )}
-              {testState.error && (
-                <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600, marginLeft: 10 }}>{testState.error}</span>
+          {/* Body */}
+          <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+            {/* Where to find */}
+            <div style={{
+              background: 'var(--surface-3)', borderRadius: 'var(--radius)',
+              padding: '10px 14px', marginBottom: '1.25rem',
+              fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7,
+              borderLeft: `3px solid ${integration.color}`,
+            }}>
+              <strong>Where to find this:</strong>{' '}
+              {integration.helpText}
+              {' '}<a href={integration.helpUrl} target="_blank" rel="noreferrer" style={{ color: integration.color, fontWeight: 600 }}>View guide →</a>
+            </div>
+
+            {/* Note */}
+            {integration.note && (
+              <div style={{ background: '#fffbeb', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: '1.25rem', fontSize: 12, color: '#92400e', lineHeight: 1.6, borderLeft: '3px solid #fde68a' }}>
+                ℹ {integration.note}
+              </div>
+            )}
+
+            {/* Warning (e.g. CORS note) */}
+            {warning && (
+              <div style={{ background: '#f0fdf4', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: '1rem', fontSize: 12, color: '#065f46', borderLeft: '3px solid #059669' }}>
+                ✓ {warning}
+              </div>
+            )}
+
+            {/* Fields */}
+            {integration.fields.map(field => (
+              <div key={field.key} style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 5, letterSpacing: '0.03em' }}>
+                  {field.label}
+                </label>
+                {field.helpNote && (
+                  <div style={{ fontSize: 11, color: '#2563EB', background: '#EFF6FF', padding: '6px 10px', borderRadius: 6, marginBottom: 6, lineHeight: 1.5, fontFamily: 'monospace' }}>
+                    {field.helpNote}
+                  </div>
+                )}
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={field.type === 'password' && !showValues[field.key] ? 'password' : 'text'}
+                    value={values[field.key]}
+                    onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))}
+                    placeholder={field.placeholder}
+                    style={{
+                      width: '100%', padding: '9px 36px 9px 12px',
+                      border: '1.5px solid var(--border-mid)', borderRadius: 'var(--radius)',
+                      fontSize: 13, color: 'var(--text-primary)', background: 'var(--surface-2)',
+                      outline: 'none', boxSizing: 'border-box',
+                    }}
+                    onFocus={e => e.target.style.borderColor = integration.color}
+                    onBlur={e => e.target.style.borderColor = 'var(--border-mid)'}
+                  />
+                  {field.type === 'password' && values[field.key] && (
+                    <button onClick={() => setShowValues(s => ({ ...s, [field.key]: !s[field.key] }))} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)' }}>
+                      {showValues[field.key] ? '🙈' : '👁'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: '0.5rem', lineHeight: 1.6 }}>
+              🔒 Credentials stored locally in your browser only — never sent to any third-party server.
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)', background: 'var(--surface-3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+            <div>
+              {connected && (
+                <button onClick={handleDisconnect} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '1px solid #fca5a5', background: 'var(--surface-2)', color: '#dc2626', cursor: 'pointer', fontWeight: 500 }}>
+                  Disconnect
+                </button>
               )}
             </div>
-          )}
-
-          <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: '0.75rem', lineHeight: 1.6 }}>
-            🔒 Credentials are stored locally in your browser only and never sent to any third-party server.
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{
-          padding: '1rem 1.5rem', borderTop: '1px solid var(--gray-100)',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          background: 'var(--gray-50)',
-        }}>
-          <div>
-            {connected && (
-              <button onClick={handleDisconnect} style={{
-                fontSize: 12, padding: '6px 14px', borderRadius: 6,
-                border: '1px solid #fca5a5', background: 'var(--white)',
-                color: '#dc2626', cursor: 'pointer', fontWeight: 500,
-              }}>
-                Disconnect
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {saving && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Verifying…</span>}
+              <button onClick={onClose} disabled={saving} style={{ fontSize: 12, padding: '7px 16px', borderRadius: 6, border: '1px solid var(--border-mid)', background: 'var(--surface-2)', color: 'var(--text-secondary)', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.5 : 1 }}>
+                Cancel
               </button>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={onClose} style={{
-              fontSize: 12, padding: '7px 16px', borderRadius: 6,
-              border: '1px solid var(--gray-200)', background: 'var(--white)',
-              color: 'var(--gray-600)', cursor: 'pointer',
-            }}>
-              Cancel
-            </button>
-            <button onClick={handleSave} disabled={!canSave || saving} style={{
-              fontSize: 12, padding: '7px 16px', borderRadius: 6,
-              border: 'none', background: canSave ? integration.color : 'var(--gray-200)',
-              color: 'var(--white)', cursor: canSave ? 'pointer' : 'default',
-              fontWeight: 600, letterSpacing: '0.03em', minWidth: 90,
-              opacity: saving ? 0.8 : 1, transition: 'all 0.15s',
-            }}>
-              {saving ? 'Saving…' : connected ? 'Update' : 'Connect'}
-            </button>
+              <button onClick={handleSave} disabled={!canSave || saving} style={{
+                fontSize: 12, padding: '7px 18px', borderRadius: 6,
+                border: 'none', background: canSave && !saving ? integration.color : 'var(--border)',
+                color: 'var(--white)', cursor: canSave && !saving ? 'pointer' : 'default',
+                fontWeight: 700, letterSpacing: '0.03em', minWidth: 100, transition: 'all 0.15s',
+              }}>
+                {saving ? '⟳ Verifying…' : connected ? 'Update' : 'Connect'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Error popup */}
+      {errorPopup && (
+        <ErrorPopup
+          integration={integration}
+          errorMsg={errorPopup.message}
+          onRetry={() => setErrorPopup(null)}
+          onSaveAnyway={() => { setErrorPopup(null); commitSave() }}
+          onClose={() => setErrorPopup(null)}
+        />
+      )}
+    </>
   )
 }
 
@@ -280,13 +347,20 @@ function IntegrationCard({ serviceKey, integration, onOpen }) {
   )
 }
 
-// ── Section: Integrations ───────────────────────────────────────────────────
+// ── Section: Integrations ────────────────────────────────────────────────────
 function IntegrationsSection({ onModal }) {
+  const [, forceRender] = useState(0)
+  const refresh = () => forceRender(n => n + 1)
+
+  // Track which categories are manually toggled open/closed
+  // Default: open if anything is connected, closed otherwise
+  const [overrides, setOverrides] = useState({})
+  const toggle = (catKey) => setOverrides(o => ({ ...o, [catKey]: !isOpen(catKey) }))
+
   const connectedCount = getConnectedCount()
   const total = Object.keys(INTEGRATIONS).length
   const pct = Math.round((connectedCount / total) * 100)
 
-  // Group integrations by category
   const grouped = {}
   Object.entries(INTEGRATIONS).forEach(([key, integration]) => {
     const cat = integration.category || 'other'
@@ -294,78 +368,112 @@ function IntegrationsSection({ onModal }) {
     grouped[cat].push([key, integration])
   })
 
+  function isOpen(catKey) {
+    if (catKey in overrides) return overrides[catKey]
+    // Default: open if something is connected in this category
+    const items = grouped[catKey] || []
+    return items.some(([k]) => isConnected(k))
+  }
+
   return (
     <div>
-      {/* Progress */}
-      <div style={{
-        background: 'var(--white)', borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--gray-100)', padding: '1.25rem 1.5rem',
-        marginBottom: '1.5rem',
-        display: 'flex', alignItems: 'center', gap: '1.5rem',
-      }}>
+      {/* Progress bar */}
+      <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '1.25rem 1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--gray-400)', marginBottom: 8, letterSpacing: '0.06em' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.06em' }}>
             <span>INTEGRATION SETUP</span>
             <span>{connectedCount} / {total} connected · {pct}%</span>
           </div>
-          <div style={{ height: 6, background: 'var(--gray-100)', borderRadius: 99, overflow: 'hidden' }}>
-            <div style={{
-              height: '100%', borderRadius: 99,
-              background: 'linear-gradient(90deg, var(--red), #E87040)',
-              width: `${pct}%`,
-              transition: 'width 0.4s ease',
-            }} />
+          <div style={{ height: 6, background: 'var(--surface-3)', borderRadius: 99, overflow: 'hidden' }}>
+            <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg, var(--red), #E87040)', width: `${pct}%`, transition: 'width 0.4s ease' }} />
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--navy)', lineHeight: 1 }}>{pct}%</div>
-          <div style={{ fontSize: 10, color: 'var(--gray-400)', letterSpacing: '0.06em', marginTop: 2 }}>COMPLETE</div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.06em', marginTop: 2 }}>COMPLETE</div>
         </div>
       </div>
 
-      {/* Grouped cards */}
+      {/* Collapsible category sections */}
       {Object.entries(INTEGRATION_CATEGORIES).map(([catKey, catMeta]) => {
         const items = grouped[catKey]
         if (!items?.length) return null
         const catConnected = items.filter(([k]) => isConnected(k)).length
+        const open = isOpen(catKey)
 
         return (
-          <div key={catKey} style={{ marginBottom: '1.5rem' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              marginBottom: 10,
-            }}>
-              <span style={{ fontSize: 14 }}>{catMeta.icon}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-500)', letterSpacing: '0.08em' }}>
-                {catMeta.label.toUpperCase()}
-              </span>
-              <span style={{ fontSize: 11, color: 'var(--gray-400)' }}>
-                · {catConnected}/{items.length} connected
-              </span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
-              {items.map(([key, integration]) => (
-                <IntegrationCard
-                  key={key}
-                  serviceKey={key}
-                  integration={integration}
-                  onOpen={onModal}
-                />
-              ))}
-            </div>
+          <div key={catKey} style={{ marginBottom: 10, borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden', background: 'var(--surface-2)' }}>
+            {/* Category header — always visible, click to toggle */}
+            <button onClick={() => toggle(catKey)} style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '14px 18px', background: 'none', border: 'none', cursor: 'pointer',
+              borderBottom: open ? '1px solid var(--border)' : 'none',
+              transition: 'background 0.12s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>{catMeta.icon}</span>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
+                    {catMeta.label}
+                  </div>
+                  <div style={{ fontSize: 11, color: catConnected > 0 ? '#059669' : 'var(--text-muted)', marginTop: 1 }}>
+                    {catConnected > 0
+                      ? `${catConnected} of ${items.length} connected`
+                      : `${items.length} platforms available — nothing connected yet`}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {catConnected > 0 && (
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#d1fae5', color: '#065f46' }}>
+                    {catConnected} CONNECTED
+                  </span>
+                )}
+                <span style={{ fontSize: 16, color: 'var(--text-muted)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>⌄</span>
+              </div>
+            </button>
+
+            {/* Expanded content */}
+            {open && (
+              <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {/* Empty state */}
+                {catConnected === 0 && (
+                  <div style={{
+                    padding: '14px 16px', borderRadius: 'var(--radius)',
+                    background: 'var(--surface-3)', border: '1px dashed var(--border-mid)',
+                    display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4,
+                  }}>
+                    <span style={{ fontSize: 22 }}>🔌</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 2 }}>
+                        No {catMeta.label} integrations connected yet
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        Connect one of the platforms below to start syncing data.
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {items.map(([key, integration]) => (
+                  <IntegrationCard
+                    key={key}
+                    serviceKey={key}
+                    integration={integration}
+                    onOpen={(k) => { onModal(k); setTimeout(refresh, 500) }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )
       })}
 
-      {/* CORS note */}
-      <div style={{
-        marginTop: '0.5rem', padding: '1rem 1.25rem',
-        background: '#fffbeb', borderRadius: 'var(--radius)',
-        border: '1px solid #fde68a', fontSize: 12, color: '#92400e', lineHeight: 1.7,
-      }}>
-        <strong>⚠ Note for Shopify & Klaviyo:</strong> Browser security rules (CORS) prevent direct calls to these APIs from a local app.
-        Once you deploy this dashboard to a server (e.g. Vercel), those connections will work automatically.
-        In the meantime, Shopify data can be pulled via Make webhooks.
+      {/* Note */}
+      <div style={{ marginTop: '0.75rem', padding: '1rem 1.25rem', background: '#fffbeb', borderRadius: 'var(--radius)', border: '1px solid #fde68a', fontSize: 12, color: '#92400e', lineHeight: 1.7 }}>
+        <strong>⚠ Browser API note:</strong> Some integrations (Shopify, WooCommerce, Meta Ads, etc.) have CORS restrictions that prevent direct browser calls. Connections are saved and used within the dashboard. For live data sync, deploying to a server with a proxy removes these limits. Make/Zapier webhooks work from any browser.
       </div>
     </div>
   )
