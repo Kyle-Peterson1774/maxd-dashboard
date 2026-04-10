@@ -10,6 +10,50 @@ function loadContent()  { try { return JSON.parse(localStorage.getItem('maxd_con
 function loadLaunches() { try { return JSON.parse(localStorage.getItem('maxd_launches') || '[]') } catch { return [] } }
 function loadAds()      { try { return JSON.parse(localStorage.getItem('maxd_ads')      || '[]') } catch { return [] } }
 
+// ─── Business data readers ─────────────────────────────────────────────────────
+function loadSocial()  { try { return JSON.parse(localStorage.getItem('maxd_social') || 'null') } catch { return null } }
+function loadMarketing() { try { return JSON.parse(localStorage.getItem('maxd_marketing') || 'null') } catch { return null } }
+function loadFinance() { try { return JSON.parse(localStorage.getItem('maxd_finance') || 'null') } catch { return null } }
+function loadOps()     { try { return JSON.parse(localStorage.getItem('maxd_operations') || 'null') } catch { return null } }
+
+function deriveBizStats() {
+  const social = loadSocial()
+  const marketing = loadMarketing()
+  const finance = loadFinance()
+  const ops = loadOps()
+
+  // Total followers from latest snapshot
+  let totalFollowers = 0
+  if (social?.snapshots?.length) {
+    const latest = [...social.snapshots].sort((a, b) => b.date.localeCompare(a.date))[0]
+    totalFollowers = ['instagram','tiktok','youtube','facebook'].reduce((s, k) => s + Number(latest[k] || 0), 0)
+  }
+
+  // Ad spend & active campaigns
+  const activeCampaigns = marketing?.campaigns?.filter(c => c.status === 'active') || []
+  const totalAdSpend = activeCampaigns.reduce((s, c) => s + Number(c.spend || 0), 0)
+  const overBudget = marketing?.campaigns?.filter(c => Number(c.spend) >= Number(c.budget) && c.status === 'active') || []
+
+  // Finance
+  const cashOnHand = finance?.cashOnHand || 0
+  let monthlyRevenue = 0
+  let netProfit = 0
+  if (finance?.months?.length) {
+    const latest = [...finance.months].sort((a, b) => b.month.localeCompare(a.month))[0]
+    const totalExp = ['cogs','marketing','payroll','fulfillment','software','office','legal','misc'].reduce((s,k) => s+Number(latest[k]||0),0)
+    monthlyRevenue = Number(latest.revenue || 0)
+    netProfit = monthlyRevenue - totalExp
+  }
+
+  // Inventory alerts
+  const lowStockItems = (ops?.inventory || []).filter(i => Number(i.stock) <= Number(i.reorderPoint))
+
+  return { totalFollowers, activeCampaigns: activeCampaigns.length, totalAdSpend, overBudget, cashOnHand, monthlyRevenue, netProfit, lowStockItems }
+}
+
+function moneyFmt(n) { return '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }) }
+function fmtFollowers(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : String(n) }
+
 function todayStr() { return new Date().toISOString().split('T')[0] }
 function addDays(d, n) { const dt = new Date(d + 'T00:00:00'); dt.setDate(dt.getDate() + n); return dt.toISOString().split('T')[0] }
 function fmtDate(str) {
@@ -334,6 +378,7 @@ function Empty({ message, cta, to }) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [data, setData] = useState({ scripts: [], content: [], launches: [], ads: [], team: [] })
+  const [biz, setBiz] = useState(() => deriveBizStats())
 
   useEffect(() => {
     setData({
@@ -343,6 +388,7 @@ export default function Dashboard() {
       ads:      loadAds(),
       team:     getTeam(),
     })
+    setBiz(deriveBizStats())
   }, [])
 
   const { scripts, content, launches, ads, team } = data
@@ -387,7 +433,47 @@ export default function Dashboard() {
     <div>
       <BrandBanner />
 
-      {/* KPIs */}
+      {/* Business KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 12, marginBottom: 12 }}>
+        <StatCard label="Monthly Revenue"   value={moneyFmt(biz.monthlyRevenue)}  sub="latest month"         accent="var(--green)" />
+        <StatCard label="Net Profit"        value={moneyFmt(biz.netProfit)}       sub="after expenses"       accent={biz.netProfit >= 0 ? 'var(--green)' : 'var(--red)'} />
+        <StatCard label="Cash on Hand"      value={moneyFmt(biz.cashOnHand)}      sub="current balance"      accent="var(--navy)" />
+        <StatCard label="Total Followers"   value={fmtFollowers(biz.totalFollowers)} sub="all platforms"      accent="var(--purple)" />
+        <StatCard label="Active Campaigns"  value={biz.activeCampaigns}           sub={`$${Math.round(biz.totalAdSpend).toLocaleString()} spend`} accent="var(--blue)" />
+        <StatCard label="Low Stock Alerts"  value={biz.lowStockItems.length}      sub="need reorder"         accent={biz.lowStockItems.length > 0 ? 'var(--red)' : 'var(--green)'} />
+      </div>
+
+      {/* Alerts */}
+      {(biz.lowStockItems.length > 0 || biz.overBudget.length > 0 || biz.cashOnHand < 10000) && (
+        <div style={{ marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {biz.lowStockItems.length > 0 && (
+            <Link to="/operations" style={{ textDecoration: 'none' }}>
+              <div style={{ background: '#fef3c722', border: '1px solid #f59e0b55', borderRadius: 8, padding: '0.6rem 1rem', fontSize: 13, color: '#d97706', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>⚠️</span>
+                <span><strong>Low stock:</strong> {biz.lowStockItems.map(i => i.name).join(', ')} — go to Operations to reorder</span>
+              </div>
+            </Link>
+          )}
+          {biz.overBudget.length > 0 && (
+            <Link to="/marketing" style={{ textDecoration: 'none' }}>
+              <div style={{ background: '#fee2e222', border: '1px solid #ef444455', borderRadius: 8, padding: '0.6rem 1rem', fontSize: 13, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>🚨</span>
+                <span><strong>Over budget:</strong> {biz.overBudget.map(c => c.name).join(', ')} — check Marketing</span>
+              </div>
+            </Link>
+          )}
+          {biz.cashOnHand < 10000 && biz.cashOnHand > 0 && (
+            <Link to="/finance" style={{ textDecoration: 'none' }}>
+              <div style={{ background: '#fee2e222', border: '1px solid #ef444455', borderRadius: 8, padding: '0.6rem 1rem', fontSize: 13, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>💰</span>
+                <span><strong>Cash on hand below $10k</strong> — review Finance</span>
+              </div>
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Content KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 12, marginBottom: '1.75rem' }}>
         <StatCard label="Scripts Active"    value={activeScripts}          sub="in progress"    accent="var(--blue)" />
         <StatCard label="Scripts Ready"     value={readyScripts}           sub="ready to film"  accent="var(--green)" />
