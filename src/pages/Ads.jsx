@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { getTeam } from '../lib/team.js'
 import { getCredentials } from '../lib/credentials.js'
@@ -72,9 +72,9 @@ const DEMO_ADS = [
 function initAds() {
   try {
     const raw = localStorage.getItem(STORE_KEY)
-    if (raw) {
+    if (raw !== null) {
       const stored = JSON.parse(raw)
-      if (stored.length > 0) return stored
+      if (Array.isArray(stored)) return stored   // return even if empty — respect intentional clears
     }
   } catch {}
   saveAds(DEMO_ADS)
@@ -268,6 +268,21 @@ function VariantEditor({ variant, ad, onChange, onDelete, canDelete }) {
 function AdEditor({ ad, onSave, onBack, onDelete }) {
   const [draft, setDraft] = useState({ ...ad })
   const set = (k, v) => setDraft(d => ({ ...d, [k]: v }))
+
+  // Auto-save to localStorage whenever draft changes (skip initial render)
+  const skipFirst = useRef(true)
+  useEffect(() => {
+    if (skipFirst.current) { skipFirst.current = false; return }
+    if (!draft.id) return
+    const t = setTimeout(() => {
+      try {
+        const list = JSON.parse(localStorage.getItem(STORE_KEY) || '[]')
+        const next = list.map(a => a.id === draft.id ? { ...draft, updatedAt: new Date().toISOString() } : a)
+        if (next.some(a => a.id === draft.id)) saveAds(next)
+      } catch {}
+    }, 600)
+    return () => clearTimeout(t)
+  }, [draft])
 
   function updateVariant(id, updated) {
     setDraft(d => ({ ...d, variants: d.variants.map(v => v.id === id ? updated : v) }))

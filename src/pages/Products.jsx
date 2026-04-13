@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -71,9 +71,9 @@ const DEMO_PRODUCTS = [
 function initProducts() {
   try {
     const raw = localStorage.getItem(STORE_KEY)
-    if (raw) {
+    if (raw !== null) {
       const stored = JSON.parse(raw)
-      if (stored.length > 0) return stored
+      if (Array.isArray(stored)) return stored   // return even if empty — respect intentional clears
     }
   } catch {}
   saveProducts(DEMO_PRODUCTS)
@@ -207,6 +207,21 @@ function IngredientEditor({ ingredients, onChange }) {
 function ProductEditor({ product, onSave, onBack, onDelete }) {
   const [draft, setDraft] = useState({ ...product })
   const set = (k, v) => setDraft(d => ({ ...d, [k]: v }))
+
+  // Auto-save to localStorage whenever draft changes (skip initial render)
+  const skipFirst = useRef(true)
+  useEffect(() => {
+    if (skipFirst.current) { skipFirst.current = false; return }
+    if (!draft.id) return
+    const t = setTimeout(() => {
+      try {
+        const list = JSON.parse(localStorage.getItem(STORE_KEY) || '[]')
+        const next = list.map(p => p.id === draft.id ? { ...draft, updatedAt: new Date().toISOString() } : p)
+        if (next.some(p => p.id === draft.id)) saveProducts(next)
+      } catch {}
+    }, 600)
+    return () => clearTimeout(t)
+  }, [draft])
 
   const fieldStyle = {
     width: '100%', background: 'var(--surface)', border: '1px solid var(--border-mid)',

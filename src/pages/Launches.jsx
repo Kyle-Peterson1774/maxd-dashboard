@@ -61,9 +61,9 @@ const DEMO_LAUNCHES = [
 function initLaunches() {
   try {
     const raw = localStorage.getItem(STORE_KEY)
-    if (raw) {
+    if (raw !== null) {
       const stored = JSON.parse(raw)
-      if (stored.length > 0) return stored
+      if (Array.isArray(stored)) return stored   // return even if empty — respect intentional clears
     }
   } catch {}
   saveLaunches(DEMO_LAUNCHES)
@@ -196,6 +196,21 @@ function ChecklistItem({ item, team, onChange, onDelete }) {
 function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
   const [draft, setDraft] = useState({ ...launch })
   const set = (k, v) => setDraft(d => ({ ...d, [k]: v }))
+
+  // Auto-save to localStorage whenever draft changes (skip initial render)
+  const skipFirst = useRef(true)
+  useEffect(() => {
+    if (skipFirst.current) { skipFirst.current = false; return }
+    if (!draft.id) return
+    const t = setTimeout(() => {
+      try {
+        const list = JSON.parse(localStorage.getItem(STORE_KEY) || '[]')
+        const next = list.map(l => l.id === draft.id ? { ...draft, updatedAt: new Date().toISOString() } : l)
+        if (next.some(l => l.id === draft.id)) saveLaunches(next)
+      } catch {}
+    }, 600)
+    return () => clearTimeout(t)
+  }, [draft])
 
   function updateCheckItem(id, updated) {
     setDraft(d => ({ ...d, checklist: d.checklist.map(c => c.id === id ? updated : c) }))

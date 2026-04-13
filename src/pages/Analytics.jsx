@@ -52,9 +52,9 @@ const DEMO_ENTRIES = [
 function initEntries() {
   try {
     const raw = localStorage.getItem(STORE_KEY)
-    if (raw) {
+    if (raw !== null) {
       const stored = JSON.parse(raw)
-      if (stored.length > 0) return stored
+      if (Array.isArray(stored)) return stored   // return even if empty — respect intentional clears
     }
   } catch {}
   saveEntries(DEMO_ENTRIES)
