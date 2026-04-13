@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
+import { fetchShopifyOrders, fetchShopifyProducts, shopifyProductsToInventory, shopifyOrdersToOpsOrders } from '../lib/liveData.js'
+import { isConnected } from '../lib/credentials.js'
 
 const STORE_KEY = 'maxd_operations'
 
@@ -30,8 +32,10 @@ const DEMO = {
   ],
 }
 
+const EMPTY_DATA = { inventory: [], batches: [], orders: [] }
+
 function load() {
-  try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : DEMO } catch { return DEMO }
+  try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : EMPTY_DATA } catch { return EMPTY_DATA }
 }
 function save(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)) }
 function nid() { return `i_${Date.now()}_${Math.random().toString(36).slice(2,5)}` }
@@ -210,14 +214,41 @@ function OrderModal({ order, onClose, onSave, onDelete }) {
 
 // ── Main Component ──────────────────────────────────────────────────────────
 export default function Operations() {
-  const [data, setData] = useState(load)
-  const [tab, setTab] = useState('inventory')
+  const [data, setData]         = useState(load)
+  const [tab, setTab]           = useState('inventory')
   const [invModal, setInvModal] = useState(null)
   const [batchModal, setBatchModal] = useState(null)
   const [orderModal, setOrderModal] = useState(null)
-  const [searchQ, setSearchQ] = useState('')
+  const [searchQ, setSearchQ]   = useState('')
+  const [syncing, setSyncing]   = useState(false)
+  const [syncStatus, setSyncStatus] = useState(null)
 
   const persist = (next) => { setData(next); save(next) }
+
+  // Auto-fetch Shopify products (inventory) and orders when Shopify is connected
+  useEffect(() => {
+    if (!isConnected('shopify')) return
+    setSyncing(true)
+    Promise.all([fetchShopifyProducts(), fetchShopifyOrders(60)]).then(([products, orders]) => {
+      setSyncing(false)
+      if (!products && !orders) { setSyncStatus('error'); return }
+      setSyncStatus('ok')
+      setData(prev => {
+        const existingIds = new Set(prev.inventory.map(i => i.id))
+        const newInv = products ? shopifyProductsToInventory(products).filter(i => !existingIds.has(i.id)) : []
+        const existingOrderIds = new Set(prev.orders.map(o => o.id))
+        const newOrders = orders ? shopifyOrdersToOpsOrders(orders).filter(o => !existingOrderIds.has(o.id)) : []
+        if (newInv.length === 0 && newOrders.length === 0) return prev
+        const next = {
+          ...prev,
+          inventory: [...newInv, ...prev.inventory],
+          orders: [...newOrders, ...prev.orders],
+        }
+        save(next)
+        return next
+      })
+    })
+  }, []) // eslint-disable-line
 
   const saveInv = (item) => {
     const list = data.inventory.find(x => x.id === item.id) ? data.inventory.map(x => x.id === item.id ? item : x) : [item, ...data.inventory]
@@ -271,6 +302,35 @@ export default function Operations() {
   return (
     <div style={{ padding: '1.5rem', maxWidth: 1100, margin: '0 auto' }}>
       <PageHeader title="Operations" subtitle="Inventory, production batches & fulfillment tracking" />
+
+      {/* Shopify sync status */}
+      {syncing && (
+        <div style={{ padding: '10px 16px', borderRadius: 8, background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF', fontSize: 13, marginBottom: '1rem' }}>
+          ⟳ Syncing inventory and orders from Shopify…
+        </div>
+      )}
+      {!syncing && syncStatus === 'ok' && (
+        <div style={{ padding: '10px 16px', borderRadius: 8, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#15803D', fontSize: 13, marginBottom: '1rem' }}>
+          ✓ Shopify synced — inventory and orders include live data
+        </div>
+      )}
+      {!syncing && syncStatus === 'error' && (
+        <div style={{ padding: '10px 16px', borderRadius: 8, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#92400E', fontSize: 13, marginBottom: '1rem' }}>
+          ⚠ Could not reach Shopify — check your credentials in Settings
+        </div>
+      )}
+      {!isConnected('shopify') && data.inventory.length === 0 && data.orders.length === 0 && (
+        <div style={{ padding: '2rem', borderRadius: 12, border: '2px dashed var(--border)', textAlign: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📦</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>No inventory data yet</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 380, margin: '0 auto 16px' }}>
+            Connect Shopify in Settings to auto-sync your products and orders, or add SKUs manually below.
+          </div>
+          <a href="/settings" style={{ display: 'inline-block', padding: '8px 18px', background: 'var(--navy)', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+            Go to Settings →
+          </a>
+        </div>
+      )}
 
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>

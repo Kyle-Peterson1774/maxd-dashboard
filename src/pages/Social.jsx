@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
+import { fetchLiveFollowerSnapshot } from '../lib/liveData.js'
 
 const STORE_KEY = 'maxd_social'
 
@@ -28,11 +29,13 @@ const DEMO = {
   ],
 }
 
+const EMPTY_DATA = { snapshots: [], posts: [] }
+
 function load() {
   try {
     const raw = localStorage.getItem(STORE_KEY)
-    return raw ? JSON.parse(raw) : DEMO
-  } catch { return DEMO }
+    return raw ? JSON.parse(raw) : EMPTY_DATA
+  } catch { return EMPTY_DATA }
 }
 function save(data) { localStorage.setItem(STORE_KEY, JSON.stringify(data)) }
 function nid() { return `i_${Date.now()}_${Math.random().toString(36).slice(2,5)}` }
@@ -200,13 +203,30 @@ function GrowthBars({ snapshots }) {
 
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function Social() {
-  const [data, setData] = useState(load)
+  const [data, setData]       = useState(load)
   const [snapModal, setSnapModal] = useState(null)
   const [postModal, setPostModal] = useState(null)
   const [platFilter, setPlatFilter] = useState('all')
-  const [tab, setTab] = useState('overview')
+  const [tab, setTab]         = useState('overview')
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState(null)
 
   const persist = (d) => { save(d); setData(d) }
+
+  // Sync live follower counts from connected platforms
+  const handleSync = async () => {
+    setSyncing(true)
+    setSyncMsg(null)
+    const snap = await fetchLiveFollowerSnapshot()
+    setSyncing(false)
+    if (snap) {
+      setSnapModal(snap)   // pre-fills SnapshotModal with live data for review
+      setSyncMsg(null)
+    } else {
+      setSyncMsg('No platforms connected yet — go to Settings to add Instagram, YouTube, or Facebook.')
+      setTimeout(() => setSyncMsg(null), 5000)
+    }
+  }
 
   const saveSnapshot = (s) => {
     const idx = data.snapshots.findIndex(x => x.id === s.id)
@@ -236,7 +256,10 @@ export default function Social() {
   return (
     <div>
       <PageHeader title="Social Growth" subtitle="Instagram · TikTok · YouTube · Facebook">
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={handleSync} disabled={syncing} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 'var(--radius)', background: 'var(--surface-2)', border: '1px solid var(--border-mid)', color: syncing ? 'var(--text-muted)' : 'var(--text-secondary)', cursor: syncing ? 'default' : 'pointer', fontWeight: 600 }}>
+            {syncing ? '⟳ Syncing…' : '⟳ Sync Live Followers'}
+          </button>
           <button onClick={() => setSnapModal({})} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 'var(--radius)', background: 'var(--surface-2)', border: '1px solid var(--border-mid)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}>
             + Log Followers
           </button>
@@ -245,6 +268,12 @@ export default function Social() {
           </button>
         </div>
       </PageHeader>
+
+      {syncMsg && (
+        <div style={{ padding: '10px 16px', borderRadius: 8, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#92400E', fontSize: 13, marginBottom: '1rem' }}>
+          {syncMsg}
+        </div>
+      )}
 
       {/* Platform stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: '1.5rem' }}>

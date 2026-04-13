@@ -6,19 +6,9 @@ const STORE_KEY = 'maxd_content'
 function loadContent() {
   try {
     const raw = localStorage.getItem(STORE_KEY)
-    if (raw) {
-      const stored = JSON.parse(raw)
-      const storedIds = new Set(stored.map(i => i.id))
-      const newItems = DEMO_DATA.filter(d => !storedIds.has(d.id))
-      if (newItems.length > 0) {
-        const merged = [...stored, ...newItems]
-        saveContent(merged)
-        return merged
-      }
-      return stored
-    }
-  } catch { /* fall through */ }
-  return DEMO_DATA
+    if (raw !== null) return JSON.parse(raw)
+    return []
+  } catch { return [] }
 }
 
 function saveContent(items) {

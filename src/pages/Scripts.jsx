@@ -8,8 +8,8 @@ const STORE_KEY = 'maxd_scripts'
 function loadScripts() {
   try {
     const raw = localStorage.getItem(STORE_KEY)
-    if (raw) return JSON.parse(raw)
-    saveScripts(DEMO_SCRIPTS); return DEMO_SCRIPTS
+    if (raw !== null) return JSON.parse(raw)
+    return []
   } catch { return [] }
 }
 function saveScripts(scripts) { localStorage.setItem(STORE_KEY, JSON.stringify(scripts)) }

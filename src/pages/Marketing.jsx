@@ -34,8 +34,10 @@ const DEMO = {
   ],
 }
 
+const EMPTY_DATA = { campaigns: [], emails: [] }
+
 function load() {
-  try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : DEMO } catch { return DEMO }
+  try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : EMPTY_DATA } catch { return EMPTY_DATA }
 }
 function save(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)) }
 function nid() { return `i_${Date.now()}_${Math.random().toString(36).slice(2,5)}` }

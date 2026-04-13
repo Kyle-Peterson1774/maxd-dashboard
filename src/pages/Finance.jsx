@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
+import { fetchShopifyOrders, shopifyOrdersToTransactions } from '../lib/liveData.js'
+import { isConnected } from '../lib/credentials.js'
 
 const STORE_KEY = 'maxd_finance'
 
@@ -28,8 +30,10 @@ const DEMO = {
   cashOnHand: 48200,
 }
 
+const EMPTY_DATA = { months: [], transactions: [], cashOnHand: 0 }
+
 function load() {
-  try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : DEMO } catch { return DEMO }
+  try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : EMPTY_DATA } catch { return EMPTY_DATA }
 }
 function save(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)) }
 function nid() { return `i_${Date.now()}_${Math.random().toString(36).slice(2,5)}` }
@@ -152,13 +156,36 @@ function CashModal({ current, onClose, onSave }) {
 
 // ── Main Component ──────────────────────────────────────────────────────────
 export default function Finance() {
-  const [data, setData] = useState(load)
-  const [tab, setTab] = useState('pl')
+  const [data, setData]         = useState(load)
+  const [tab, setTab]           = useState('pl')
   const [monthModal, setMonthModal] = useState(null)
-  const [txModal, setTxModal] = useState(null)
+  const [txModal, setTxModal]   = useState(null)
   const [cashModal, setCashModal] = useState(false)
+  const [syncing, setSyncing]   = useState(false)
+  const [syncStatus, setSyncStatus] = useState(null) // 'ok' | 'error' | null
 
   const persist = (next) => { setData(next); save(next) }
+
+  // Auto-fetch Shopify orders and merge as transactions when Shopify is connected
+  useEffect(() => {
+    if (!isConnected('shopify')) return
+    setSyncing(true)
+    fetchShopifyOrders(90).then(orders => {
+      setSyncing(false)
+      if (!orders) { setSyncStatus('error'); return }
+      setSyncStatus('ok')
+      setData(prev => {
+        // Merge: keep all manual transactions, add Shopify ones not already present
+        const shopifyTxs = shopifyOrdersToTransactions(orders)
+        const existingIds = new Set(prev.transactions.map(t => t.id))
+        const newTxs = shopifyTxs.filter(t => !existingIds.has(t.id))
+        if (newTxs.length === 0) return prev
+        const next = { ...prev, transactions: [...newTxs, ...prev.transactions] }
+        save(next)
+        return next
+      })
+    })
+  }, []) // eslint-disable-line
 
   const saveMonth = (m) => {
     const list = data.months.find(x => x.id === m.id) ? data.months.map(x => x.id === m.id ? m : x) : [m, ...data.months]
@@ -216,6 +243,35 @@ export default function Finance() {
   return (
     <div style={{ padding: '1.5rem', maxWidth: 1100, margin: '0 auto' }}>
       <PageHeader title="Finance" subtitle="P&L tracker, expense breakdown & transaction log" />
+
+      {/* Shopify sync status */}
+      {syncing && (
+        <div style={{ padding: '10px 16px', borderRadius: 8, background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF', fontSize: 13, marginBottom: '1rem' }}>
+          ⟳ Syncing transactions from Shopify…
+        </div>
+      )}
+      {!syncing && syncStatus === 'ok' && isConnected('shopify') && (
+        <div style={{ padding: '10px 16px', borderRadius: 8, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#15803D', fontSize: 13, marginBottom: '1rem' }}>
+          ✓ Shopify orders synced — transactions above include live order data
+        </div>
+      )}
+      {!syncing && syncStatus === 'error' && (
+        <div style={{ padding: '10px 16px', borderRadius: 8, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#92400E', fontSize: 13, marginBottom: '1rem' }}>
+          ⚠ Could not reach Shopify API — check your credentials in Settings or try again later
+        </div>
+      )}
+      {!isConnected('shopify') && data.transactions.length === 0 && data.months.length === 0 && (
+        <div style={{ padding: '2rem', borderRadius: 12, border: '2px dashed var(--border)', textAlign: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>💳</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>No financial data yet</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 380, margin: '0 auto 16px' }}>
+            Connect Shopify in Settings to auto-sync orders, or add months and transactions manually below.
+          </div>
+          <a href="/settings" style={{ display: 'inline-block', padding: '8px 18px', background: 'var(--navy)', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+            Go to Settings →
+          </a>
+        </div>
+      )}
 
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
