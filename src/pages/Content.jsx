@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
+import { dbSet } from '../lib/db.js'
 // ── Storage ──────────────────────────────────────────────────────────────────
 const STORE_KEY = 'maxd_content'
 
@@ -12,7 +13,7 @@ function loadContent() {
 }
 
 function saveContent(items) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(items))
+  dbSet(STORE_KEY, items)
 }
 
 function newId() {
@@ -844,6 +845,13 @@ export default function Content() {
   const [modal, setModal]           = useState(null)
   const [prefillDate, setPrefillDate] = useState('')
   const [calMonth, setCalMonth]     = useState(new Date(2026, 3, 1))
+
+  // Refresh from Supabase when page opens
+  useEffect(() => {
+    import('../lib/db.js').then(({ dbGet }) => {
+      dbGet(STORE_KEY).then(d => { if (d) setItems(d) })
+    })
+  }, [])
   const [weekStart, setWeekStart]   = useState(getWeekStart(new Date()))
 
   const persist = (updated) => { saveContent(updated); setItems(updated) }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { getTeam } from '../lib/team.js'
+import { dbSet, dbGet } from '../lib/db.js'
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 const STORE_KEY = 'maxd_launches'
@@ -9,7 +10,7 @@ function loadLaunches() {
   try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]') } catch { return [] }
 }
 function saveLaunches(data) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(data))
+  dbSet(STORE_KEY, data)
 }
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }
@@ -387,7 +388,10 @@ export default function Launches() {
   const [filter, setFilter]     = useState('all')
   const team = getTeam()
 
-  useEffect(() => { setLaunches(initLaunches()) }, [])
+  useEffect(() => {
+    setLaunches(initLaunches())
+    dbGet(STORE_KEY).then(d => { if (d) setLaunches(d) })
+  }, [])
 
   function handleSave(updated) {
     const next = launches.some(l => l.id === updated.id)

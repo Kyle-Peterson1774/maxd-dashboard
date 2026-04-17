@@ -537,10 +537,28 @@ export const INTEGRATIONS = {
       return { ok: true }
     },
   },
+  supabase: {
+    label: 'Supabase',
+    category: 'sync',
+    color: '#3ECF8E',
+    fields: [
+      { key: 'projectUrl', label: 'Project URL',      placeholder: 'https://xxxxxxxxxxxx.supabase.co', type: 'text'     },
+      { key: 'anonKey',    label: 'Anon Public Key',  placeholder: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', type: 'password' },
+    ],
+    helpText: 'Found in your Supabase project → Settings → API. Enables cross-device sync for all your dashboard data.',
+    helpUrl: 'https://supabase.com/dashboard',
+    verify: (c) => {
+      if (!c.projectUrl?.trim()) return { ok: false, error: 'Project URL is required.' }
+      if (!c.projectUrl.includes('supabase.co')) return { ok: false, error: 'URL should end with .supabase.co' }
+      if (!c.anonKey?.trim()) return { ok: false, error: 'Anon public key is required.' }
+      return { ok: true }
+    },
+  },
 }
 
 // ── Category metadata ─────────────────────────────────────────────────────────
 export const INTEGRATION_CATEGORIES = {
+  sync:       { label: '☁️ Cloud Sync',          icon: '☁️'  },
   ecommerce: { label: 'E-Commerce',           icon: '🛍'  },
   marketing:  { label: 'Marketing & Email',    icon: '📣'  },
   analytics:  { label: 'Analytics',            icon: '📊'  },

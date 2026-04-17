@@ -1,5 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth, PERMISSIONS } from '../../lib/auth.jsx'
+import { isSupabaseConfigured } from '../../lib/supabase.js'
+import { useState, useEffect } from 'react'
 
 /* ── Clean icon set (no emojis) ─────────────────────────────────── */
 const ICONS = {
@@ -81,6 +83,13 @@ const ICONS = {
       <path d="M7.5 1L9 5.5H14L10 8.5l1.5 4.5L7.5 10l-4 3L5 8.5 1 5.5h5z" fill="currentColor" opacity="0.85"/>
     </svg>
   ),
+  queue: () => (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <rect x="1.5" y="2.5" width="12" height="2.5" rx="1.25" fill="currentColor" opacity="0.85"/>
+      <rect x="1.5" y="6.25" width="9" height="2.5" rx="1.25" fill="currentColor" opacity="0.6"/>
+      <rect x="1.5" y="10" width="6" height="2.5" rx="1.25" fill="currentColor" opacity="0.4"/>
+    </svg>
+  ),
   settings: () => (
     <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
       <circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.3" fill="none"/>
@@ -103,13 +112,15 @@ const NAV_ITEMS = [
   { path: '/finance',    label: 'Finance',      icon: 'finance',     page: 'finance'    },
   { path: '/operations', label: 'Operations',   icon: 'operations',  page: 'operations' },
   { path: '/ai',         label: 'AI Studio',    icon: 'ai',          page: 'ai'         },
+  { path: '/queue',      label: 'Action Queue', icon: 'queue',       page: 'queue'      },
 ]
 
-function NavItem({ item, isActive }) {
+function NavItem({ item, onClick, badge }) {
   const Icon = ICONS[item.icon]
   return (
     <NavLink
       to={item.path}
+      onClick={onClick}
       style={({ isActive: active }) => ({
         display: 'flex',
         alignItems: 'center',
@@ -158,6 +169,21 @@ function NavItem({ item, isActive }) {
           NEW
         </span>
       )}
+      {badge > 0 && (
+        <span style={{
+          fontSize: 9.5,
+          padding: '1px 6px',
+          borderRadius: 10,
+          background: '#f59e0b',
+          color: '#000',
+          fontWeight: 700,
+          lineHeight: '14px',
+          minWidth: 18,
+          textAlign: 'center',
+        }}>
+          {badge}
+        </span>
+      )}
     </NavLink>
   )
 }
@@ -172,8 +198,25 @@ function MountainMark({ size = 22, color = '#E21B4D' }) {
   )
 }
 
-export default function Sidebar() {
+function usePendingQueueCount() {
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    const check = () => {
+      try {
+        const items = JSON.parse(localStorage.getItem('maxd_queue') || '[]')
+        setCount(items.filter(i => i.status === 'pending').length)
+      } catch { setCount(0) }
+    }
+    check()
+    const interval = setInterval(check, 15000)
+    return () => clearInterval(interval)
+  }, [])
+  return count
+}
+
+export default function Sidebar({ onNavClick }) {
   const { user, hasAccess, logout } = useAuth()
+  const pendingQueue = usePendingQueueCount()
 
   return (
     <aside style={{
@@ -240,7 +283,12 @@ export default function Sidebar() {
       {/* Nav links */}
       <nav style={{ flex: 1, paddingBottom: '0.5rem', overflowY: 'auto' }}>
         {NAV_ITEMS.filter(item => hasAccess(item.page)).map(item => (
-          <NavItem key={item.path} item={item} />
+          <NavItem
+            key={item.path}
+            item={item}
+            onClick={onNavClick}
+            badge={item.page === 'queue' ? pendingQueue : 0}
+          />
         ))}
       </nav>
 
@@ -312,6 +360,21 @@ export default function Sidebar() {
             </div>
           </div>
         )}
+
+        {/* Cloud sync status */}
+        <div style={{ padding: '8px 1.25rem 12px', marginTop: 2 }}>
+          {isSupabaseConfigured() ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'rgba(255,255,255,0.35)' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+              Cloud sync active
+            </div>
+          ) : (
+            <NavLink to="/settings" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'rgba(255,255,255,0.3)' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
+              Local only — connect Supabase
+            </NavLink>
+          )}
+        </div>
       </div>
     </aside>
   )

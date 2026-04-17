@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { getCredentials } from '../lib/credentials.js'
 import { getTeam } from '../lib/team.js'
+import { dbSet } from '../lib/db.js'
 
 // ── Storage ───────────────────────────────────────────────────────────────────
 const STORE_KEY = 'maxd_scripts'
@@ -12,7 +13,7 @@ function loadScripts() {
     return []
   } catch { return [] }
 }
-function saveScripts(scripts) { localStorage.setItem(STORE_KEY, JSON.stringify(scripts)) }
+function saveScripts(scripts) { dbSet(STORE_KEY, scripts) }
 function newId() { return `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}` }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -1012,6 +1013,13 @@ export default function Scripts() {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterPlatform, setFilterPlatform] = useState('')
   const [view, setView] = useState('grid') // 'grid' | 'kanban'
+
+  // Refresh from Supabase when page opens
+  useEffect(() => {
+    import('../lib/db.js').then(({ dbGet }) => {
+      dbGet(STORE_KEY).then(d => { if (d) setScripts(d) })
+    })
+  }, [])
 
   const persist = (updated) => { saveScripts(updated); setScripts(updated) }
   const handleNew = () => { const s = EMPTY_SCRIPT(); persist([s, ...scripts]); setEditing(s) }

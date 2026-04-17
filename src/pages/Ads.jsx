@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { getTeam } from '../lib/team.js'
 import { getCredentials } from '../lib/credentials.js'
+import { dbSet, dbGet } from '../lib/db.js'
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 const STORE_KEY = 'maxd_ads'
 
 function loadAds()  { try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]') } catch { return [] } }
-function saveAds(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)) }
+function saveAds(d) { dbSet(STORE_KEY, d) }
 function uid()      { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }
 
 function EMPTY_AD() {
@@ -424,7 +425,10 @@ export default function Ads() {
   const [selected, setSelected] = useState(null)
   const [filter,   setFilter]   = useState('all')
 
-  useEffect(() => { setAds(initAds()) }, [])
+  useEffect(() => {
+    setAds(initAds())
+    dbGet(STORE_KEY).then(d => { if (d) setAds(d) })
+  }, [])
 
   function handleSave(updated) {
     const next = ads.some(a => a.id === updated.id)

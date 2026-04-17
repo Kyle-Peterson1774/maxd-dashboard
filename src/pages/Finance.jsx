@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { fetchShopifyOrders, shopifyOrdersToTransactions } from '../lib/liveData.js'
 import { isConnected } from '../lib/credentials.js'
+import { dbSet } from '../lib/db.js'
 
 const STORE_KEY = 'maxd_finance'
 
@@ -35,7 +36,7 @@ const EMPTY_DATA = { months: [], transactions: [], cashOnHand: 0 }
 function load() {
   try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : EMPTY_DATA } catch { return EMPTY_DATA }
 }
-function save(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)) }
+function save(d) { dbSet(STORE_KEY, d) }
 function nid() { return `i_${Date.now()}_${Math.random().toString(36).slice(2,5)}` }
 function money(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0 }) }
 function pctStr(n) { return (Number(n || 0) * 100).toFixed(1) + '%' }
@@ -165,6 +166,13 @@ export default function Finance() {
   const [syncStatus, setSyncStatus] = useState(null) // 'ok' | 'error' | null
 
   const persist = (next) => { setData(next); save(next) }
+
+  // Refresh from Supabase when page opens
+  useEffect(() => {
+    import('../lib/db.js').then(({ dbGet }) => {
+      dbGet(STORE_KEY).then(d => { if (d) setData(d) })
+    })
+  }, [])
 
   // Auto-fetch Shopify orders and merge as transactions when Shopify is connected
   useEffect(() => {

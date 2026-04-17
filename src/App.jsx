@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './lib/auth.jsx'
 import Layout from './components/layout/Layout.jsx'
+import { syncAllFromCloud } from './lib/db.js'
 
 // Pages
 import Dashboard from './pages/Dashboard.jsx'
@@ -18,6 +20,7 @@ import Launches  from './pages/Launches.jsx'
 import Ads       from './pages/Ads.jsx'
 import Products  from './pages/Products.jsx'
 import Analytics from './pages/Analytics.jsx'
+import Queue    from './pages/Queue.jsx'
 
 // Protected route wrapper
 function Protected({ page, children }) {
@@ -25,7 +28,16 @@ function Protected({ page, children }) {
   return hasAccess(page) ? children : <Navigate to="/unauthorized" replace />
 }
 
+const SYNC_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
+
 function AppRoutes() {
+  // Sync from Supabase on load, then every 5 minutes automatically
+  useEffect(() => {
+    syncAllFromCloud()
+    const interval = setInterval(syncAllFromCloud, SYNC_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [])
+
   return (
     <Layout>
       <Routes>
@@ -38,6 +50,7 @@ function AppRoutes() {
         <Route path="/ads"           element={<Protected page="ads"><Ads /></Protected>} />
         <Route path="/products"      element={<Protected page="products"><Products /></Protected>} />
         <Route path="/analytics"     element={<Protected page="analytics"><Analytics /></Protected>} />
+        <Route path="/queue"         element={<Protected page="queue"><Queue /></Protected>} />
         <Route path="/sales"         element={<Protected page="sales"><Sales /></Protected>} />
         <Route path="/marketing"     element={<Protected page="marketing"><Marketing /></Protected>} />
         <Route path="/finance"       element={<Protected page="finance"><Finance /></Protected>} />

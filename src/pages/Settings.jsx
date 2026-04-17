@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { getTeam, saveTeam, initials, memberColor } from '../lib/team.js'
+import { getApprovedUsers, saveApprovedUsers, ROLE_LABELS } from '../lib/auth.jsx'
 import {
   INTEGRATIONS,
   INTEGRATION_CATEGORIES,
@@ -562,6 +563,120 @@ function MemberModal({ member, onClose, onSave, onDelete }) {
   )
 }
 
+// ── Section: Access Control ───────────────────────────────────────────────────
+const ROLE_COLORS = { admin: '#E21B4D', content: '#3b82f6', marketing: '#8b5cf6', ops: '#22c55e' }
+
+function AccessControl() {
+  const [approved, setApproved] = useState(getApprovedUsers)
+  const [newEmail, setNewEmail] = useState('')
+  const [newName, setNewName] = useState('')
+  const [newRole, setNewRole] = useState('content')
+  const [adding, setAdding] = useState(false)
+  const [error, setError] = useState('')
+
+  const persist = (list) => { setApproved(list); saveApprovedUsers(list) }
+
+  const add = () => {
+    const email = newEmail.trim().toLowerCase()
+    if (!email || !email.includes('@')) { setError('Enter a valid email address'); return }
+    if (approved.some(u => u.email.toLowerCase() === email)) { setError('That email is already on the list'); return }
+    persist([...approved, { email, name: newName.trim() || '', role: newRole }])
+    setNewEmail(''); setNewName(''); setError('')
+    setAdding(false)
+  }
+
+  const remove = (email) => {
+    if (email.toLowerCase() === 'kyle@trymaxd.com') return // owner can't be removed
+    persist(approved.filter(u => u.email.toLowerCase() !== email.toLowerCase()))
+  }
+
+  const updateRole = (email, role) => {
+    persist(approved.map(u => u.email.toLowerCase() === email.toLowerCase() ? { ...u, role } : u))
+  }
+
+  const inp = { display: 'block', padding: '0.45rem 0.6rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box' }
+
+  return (
+    <div style={{ marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>🔒 Access Control</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Only emails on this list can sign up or log in. Roles control which pages they see.</div>
+        </div>
+        <button onClick={() => setAdding(a => !a)} style={{ padding: '0.4rem 0.9rem', background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
+          {adding ? 'Cancel' : '+ Invite'}
+        </button>
+      </div>
+
+      {/* Add form */}
+      {adding && (
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '1rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 130px auto', gap: '0.5rem', alignItems: 'flex-end' }}>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Email
+              <input value={newEmail} onChange={e => { setNewEmail(e.target.value); setError('') }} onKeyDown={e => e.key === 'Enter' && add()} placeholder="teammate@trymaxd.com" style={{ ...inp, width: '100%', marginTop: 4 }} />
+            </label>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Name (optional)
+              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="First Last" style={{ ...inp, width: '100%', marginTop: 4 }} />
+            </label>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Role
+              <select value={newRole} onChange={e => setNewRole(e.target.value)} style={{ ...inp, width: '100%', marginTop: 4 }}>
+                {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>)}
+              </select>
+            </label>
+            <button onClick={add} style={{ padding: '0.45rem 0.9rem', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600, marginTop: 18 }}>Add</button>
+          </div>
+          {error && <div style={{ marginTop: 6, fontSize: 12, color: 'var(--red)' }}>{error}</div>}
+          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+            After you add them, share the dashboard URL and tell them to click "Sign up" with this email address.
+          </div>
+        </div>
+      )}
+
+      {/* Approved list */}
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 130px 60px', padding: '0.5rem 1rem', borderBottom: '1px solid var(--border)', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span>Email</span><span>Name</span><span>Role</span><span></span>
+        </div>
+        {approved.map(u => {
+          const isOwner = u.email.toLowerCase() === 'kyle@trymaxd.com'
+          return (
+            <div key={u.email} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 130px 60px', padding: '0.65rem 1rem', borderBottom: '1px solid var(--border)', alignItems: 'center', fontSize: 13 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: ROLE_COLORS[u.role] || 'var(--navy)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                  {(u.name || u.email).slice(0,2).toUpperCase()}
+                </div>
+                <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{u.email}</span>
+                {isOwner && <span style={{ fontSize: 10, background: '#E21B4D22', color: '#E21B4D', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>OWNER</span>}
+              </div>
+              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{u.name || '—'}</span>
+              <div>
+                {isOwner ? (
+                  <span style={{ fontSize: 12, color: ROLE_COLORS.admin, fontWeight: 700 }}>Admin</span>
+                ) : (
+                  <select value={u.role} onChange={e => updateRole(u.email, e.target.value)} style={{ ...inp, padding: '2px 6px', fontSize: 12, marginTop: 0 }}>
+                    {Object.keys(ROLE_LABELS).map(k => <option key={k} value={k}>{k.charAt(0).toUpperCase()+k.slice(1)}</option>)}
+                  </select>
+                )}
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                {!isOwner && (
+                  <button onClick={() => remove(u.email)} style={{ fontSize: 11, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--red)', cursor: 'pointer' }}>
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.9rem', background: 'rgba(226,27,77,0.06)', border: '1px solid rgba(226,27,77,0.15)', borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        <strong>How it works:</strong> Add a teammate's email here, then share the dashboard URL with them. They click "Sign up", use that email, and create a password. Their role is set here — they can't change it themselves.
+      </div>
+    </div>
+  )
+}
+
 function TeamSection() {
   const [team, setTeam] = useState(getTeam)
   const [modal, setModal] = useState(null)
@@ -622,7 +737,7 @@ function TeamSection() {
       </div>
 
       <div style={{ padding: '1rem 1.25rem', background: '#eff6ff', borderRadius: 'var(--radius)', border: '1px solid #bfdbfe', fontSize: 12, color: '#1e40af', lineHeight: 1.7 }}>
-        <strong>💡 How team assignment works:</strong> When you assign a Script or Content item to a team member, it shows in their queue on the Dashboard. Full push notifications and Firebase Auth login will be added in a future update.
+        <strong>💡 Team assignment:</strong> Assign Scripts or Content items to team members — their work shows up in their Dashboard queue. Manage who can log in using the Access Control section above.
       </div>
 
       {modal !== null && (
@@ -761,6 +876,47 @@ function PreferencesSection() {
 
 // ── Section: About ────────────────────────────────────────────────────────────
 function AboutSection() {
+  const [importError, setImportError] = useState('')
+  const [importSuccess, setImportSuccess] = useState(false)
+
+  const exportData = () => {
+    const data = {}
+    Object.keys(localStorage).filter(k => k.startsWith('maxd_')).forEach(k => {
+      try { data[k] = JSON.parse(localStorage.getItem(k)) } catch { data[k] = localStorage.getItem(k) }
+    })
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `maxd-backup-${new Date().toISOString().split('T')[0]}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const importData = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportError(''); setImportSuccess(false)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result)
+        if (typeof data !== 'object') throw new Error('Invalid format')
+        let count = 0
+        Object.entries(data).forEach(([k, v]) => {
+          if (k.startsWith('maxd_')) {
+            localStorage.setItem(k, JSON.stringify(v))
+            count++
+          }
+        })
+        setImportSuccess(true)
+        setTimeout(() => window.location.reload(), 1200)
+      } catch { setImportError('Could not read backup file. Make sure it was exported from this dashboard.') }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
   const clearAll = () => {
     if (window.confirm('Clear ALL saved data (credentials, leads, preferences)? This cannot be undone.')) {
       const keys = Object.keys(localStorage).filter(k => k.startsWith('maxd_'))
@@ -769,45 +925,61 @@ function AboutSection() {
     }
   }
 
+  const cardStyle = { background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '1.25rem', marginBottom: '1rem' }
+  const btnStyle = { fontSize: 13, padding: '0.5rem 1rem', borderRadius: 6, cursor: 'pointer', fontWeight: 600, border: '1px solid var(--border)', background: 'var(--surface-3)', color: 'var(--text-primary)' }
+
   return (
-    <div style={{ maxWidth: 520 }}>
-      <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: '1.25rem' }}>
-          <div style={{
-            width: 48, height: 48, borderRadius: 12,
-            background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--white)', fontSize: 22, fontFamily: 'var(--font-heading)',
-          }}>M</div>
+    <div style={{ maxWidth: 560 }}>
+      {/* App info */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: '1rem' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontFamily: 'var(--font-heading)', fontWeight: 700 }}>M</div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)', fontFamily: 'var(--font-heading)', letterSpacing: '0.05em' }}>
-              MAXD WELLNESS OS
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--gray-400)' }}>Business Operating System · v1.0</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'Oswald, sans-serif', letterSpacing: '0.05em' }}>MAXD WELLNESS OS</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Operations Dashboard · v1.0</div>
           </div>
         </div>
-        <div style={{ fontSize: 12, color: 'var(--gray-500)', lineHeight: 1.8, borderTop: '1px solid var(--gray-100)', paddingTop: '1rem' }}>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.8, borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '6px 0' }}>
-            <span style={{ color: 'var(--gray-400)' }}>Version</span><span>1.0.0</span>
-            <span style={{ color: 'var(--gray-400)' }}>Stack</span><span>React 18 + Vite + Recharts</span>
-            <span style={{ color: 'var(--gray-400)' }}>Storage</span><span>localStorage (no backend)</span>
-            <span style={{ color: 'var(--gray-400)' }}>Built for</span><span>MAXD Wellness (Creatine Gummies)</span>
+            <span style={{ color: 'var(--text-muted)' }}>Stack</span><span>React 18 + Vite</span>
+            <span style={{ color: 'var(--text-muted)' }}>Storage</span><span>Supabase + localStorage cache</span>
+            <span style={{ color: 'var(--text-muted)' }}>Hosting</span><span>GitHub Pages</span>
+            <span style={{ color: 'var(--text-muted)' }}>Built for</span><span>MAXD Wellness</span>
           </div>
         </div>
       </div>
 
-      <div className="card" style={{ padding: '1.5rem', borderLeft: '3px solid #dc2626' }}>
+      {/* Export / Import */}
+      <div style={cardStyle}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>💾 Data Backup</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.6 }}>
+          Export a backup of all your dashboard data as a JSON file. Import it on any device to restore everything — scripts, content, sales data, finances, and settings.
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button onClick={exportData} style={{ ...btnStyle, background: 'var(--navy)', color: '#fff', border: 'none' }}>
+            ⬇ Export Backup
+          </button>
+          <label style={{ ...btnStyle, display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+            ⬆ Import Backup
+            <input type="file" accept=".json" onChange={importData} style={{ display: 'none' }} />
+          </label>
+        </div>
+        {importError && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--red)' }}>⚠ {importError}</div>}
+        {importSuccess && <div style={{ marginTop: 8, fontSize: 12, color: '#22c55e' }}>✓ Backup imported — reloading…</div>}
+        <div style={{ marginTop: '0.75rem', fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+          Tip: Export before making big changes, or to transfer your data to a new device before Supabase sync is set up.
+        </div>
+      </div>
+
+      {/* Danger zone */}
+      <div style={{ ...cardStyle, borderLeft: '3px solid #dc2626' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', marginBottom: 8 }}>⚠ Danger Zone</div>
-        <div style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 12, lineHeight: 1.6 }}>
-          Clear all locally saved data including API credentials, leads, and preferences.
-          This action cannot be undone.
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.6 }}>
+          Clear all locally saved data including API credentials, leads, and preferences. Export a backup first.
         </div>
         <button
           onClick={clearAll}
-          style={{
-            fontSize: 12, padding: '7px 16px', borderRadius: 6,
-            border: '1px solid #fca5a5', background: 'var(--white)',
-            color: '#dc2626', cursor: 'pointer', fontWeight: 500,
-          }}
+          style={{ fontSize: 12, padding: '7px 16px', borderRadius: 6, border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', cursor: 'pointer', fontWeight: 500 }}
         >
           Clear All Saved Data
         </button>
@@ -901,7 +1073,7 @@ export default function Settings() {
         {/* ── Content ── */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {activeSection === 'integrations' && <IntegrationsSection onModal={setActiveModal} />}
-          {activeSection === 'team'         && <TeamSection />}
+          {activeSection === 'team'         && <><AccessControl /><TeamSection /></>}
           {activeSection === 'preferences'  && <PreferencesSection />}
           {activeSection === 'about'        && <AboutSection />}
         </div>

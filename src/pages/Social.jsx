@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { fetchLiveFollowerSnapshot } from '../lib/liveData.js'
+import { dbSet, dbGet } from '../lib/db.js'
 
 const STORE_KEY = 'maxd_social'
 
@@ -37,7 +38,7 @@ function load() {
     return raw ? JSON.parse(raw) : EMPTY_DATA
   } catch { return EMPTY_DATA }
 }
-function save(data) { localStorage.setItem(STORE_KEY, JSON.stringify(data)) }
+function save(data) { dbSet(STORE_KEY, data) }
 function nid() { return `i_${Date.now()}_${Math.random().toString(36).slice(2,5)}` }
 function fmt(n) { return n >= 1000 ? `${(n/1000).toFixed(1)}k` : String(n) }
 function pct(a, b) { if (!b) return '—'; const d = ((a-b)/b*100); return (d >= 0 ? '+' : '') + d.toFixed(1) + '%' }
@@ -210,6 +211,11 @@ export default function Social() {
   const [tab, setTab]         = useState('overview')
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState(null)
+
+  // Refresh from Supabase when page opens
+  useEffect(() => {
+    dbGet(STORE_KEY).then(d => { if (d) setData(d) })
+  }, [])
 
   const persist = (d) => { save(d); setData(d) }
 

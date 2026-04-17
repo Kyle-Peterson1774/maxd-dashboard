@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
+import { dbSet, dbGet } from '../lib/db.js'
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 const STORE_KEY = 'maxd_products'
 
 function loadProducts()  { try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]') } catch { return [] } }
-function saveProducts(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)) }
+function saveProducts(d) { dbSet(STORE_KEY, d) }
 function uid()           { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }
 
 function EMPTY_PRODUCT() {
@@ -386,7 +387,10 @@ export default function Products() {
   const [selected, setSelected] = useState(null)
   const [filter,   setFilter]   = useState('all')
 
-  useEffect(() => { setProducts(initProducts()) }, [])
+  useEffect(() => {
+    setProducts(initProducts())
+    dbGet(STORE_KEY).then(d => { if (d) setProducts(d) })
+  }, [])
 
   function handleSave(updated) {
     const next = products.some(p => p.id === updated.id)

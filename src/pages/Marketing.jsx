@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
+import { dbSet, dbGet } from '../lib/db.js'
 
 const STORE_KEY = 'maxd_marketing'
 
@@ -39,7 +40,7 @@ const EMPTY_DATA = { campaigns: [], emails: [] }
 function load() {
   try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : EMPTY_DATA } catch { return EMPTY_DATA }
 }
-function save(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)) }
+function save(d) { dbSet(STORE_KEY, d) }
 function nid() { return `i_${Date.now()}_${Math.random().toString(36).slice(2,5)}` }
 function fmt(n) { return n >= 1000 ? `${(n/1000).toFixed(1)}k` : String(n ?? 0) }
 function money(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0 }) }
@@ -168,6 +169,11 @@ export default function Marketing() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [campaignModal, setCampaignModal] = useState(null)
   const [emailModal, setEmailModal] = useState(null)
+
+  // Refresh from Supabase when page opens
+  useEffect(() => {
+    dbGet(STORE_KEY).then(d => { if (d) setData(d) })
+  }, [])
 
   const persist = (next) => { setData(next); save(next) }
 
