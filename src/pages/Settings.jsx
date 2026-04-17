@@ -224,6 +224,7 @@ function ConnectModal({ serviceKey, integration, onClose, onSave }) {
                     value={values[field.key]}
                     onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))}
                     placeholder={field.placeholder}
+                    autoComplete="new-password"
                     style={{
                       width: '100%', padding: '9px 36px 9px 12px',
                       border: '1.5px solid var(--border-mid)', borderRadius: 'var(--radius)',
@@ -529,6 +530,7 @@ function MemberModal({ member, onClose, onSave, onDelete }) {
             <div key={f.key}>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--navy)', marginBottom: 5, letterSpacing: '0.04em' }}>{f.label}</label>
               <input type={f.type} value={form[f.key]} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder}
+                autoComplete="off"
                 style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1.5px solid var(--gray-200)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--navy)', outline: 'none' }} />
             </div>
           ))}
@@ -613,10 +615,10 @@ function AccessControl() {
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '1rem', marginBottom: '0.75rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 130px auto', gap: '0.5rem', alignItems: 'flex-end' }}>
             <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Email
-              <input value={newEmail} onChange={e => { setNewEmail(e.target.value); setError('') }} onKeyDown={e => e.key === 'Enter' && add()} placeholder="teammate@trymaxd.com" style={{ ...inp, width: '100%', marginTop: 4 }} />
+              <input value={newEmail} onChange={e => { setNewEmail(e.target.value); setError('') }} onKeyDown={e => e.key === 'Enter' && add()} placeholder="teammate@trymaxd.com" autoComplete="off" style={{ ...inp, width: '100%', marginTop: 4 }} />
             </label>
             <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Name (optional)
-              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="First Last" style={{ ...inp, width: '100%', marginTop: 4 }} />
+              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="First Last" autoComplete="off" style={{ ...inp, width: '100%', marginTop: 4 }} />
             </label>
             <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Role
               <select value={newRole} onChange={e => setNewRole(e.target.value)} style={{ ...inp, width: '100%', marginTop: 4 }}>
