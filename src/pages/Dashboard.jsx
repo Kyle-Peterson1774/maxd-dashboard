@@ -9,6 +9,7 @@ function loadScripts()  { try { return JSON.parse(localStorage.getItem('maxd_scr
 function loadContent()  { try { return JSON.parse(localStorage.getItem('maxd_content')  || '[]') } catch { return [] } }
 function loadLaunches() { try { return JSON.parse(localStorage.getItem('maxd_launches') || '[]') } catch { return [] } }
 function loadAds()      { try { return JSON.parse(localStorage.getItem('maxd_ads')      || '[]') } catch { return [] } }
+function loadQueue()    { try { const r = localStorage.getItem('maxd_queue'); return r ? JSON.parse(r) : { items: [] } } catch { return { items: [] } } }
 
 // ─── Business data readers ─────────────────────────────────────────────────────
 function loadSocial()  { try { return JSON.parse(localStorage.getItem('maxd_social') || 'null') } catch { return null } }
@@ -238,6 +239,85 @@ function AdRow({ ad }) {
   )
 }
 
+const QUEUE_TYPE_META = {
+  instagram_post: { icon: '📸', label: 'Instagram Post',  color: '#E1306C' },
+  tiktok_post:    { icon: '🎵', label: 'TikTok Post',     color: '#010101' },
+  facebook_post:  { icon: '👍', label: 'Facebook Post',   color: '#1877F2' },
+  youtube_post:   { icon: '▶',  label: 'YouTube Short',   color: '#FF0000' },
+  email_campaign: { icon: '✉️', label: 'Email Campaign',  color: '#00B5AD' },
+  email_sequence: { icon: '📬', label: 'Sales Email',     color: '#E21B4D' },
+  gmail_draft:    { icon: '📧', label: 'Gmail Draft',     color: '#4285F4' },
+}
+
+function QueueItemRow({ item }) {
+  const meta = QUEUE_TYPE_META[item.type] || { icon: '📋', label: item.type || 'Task', color: 'var(--navy)' }
+  const age = item.createdAt ? Math.floor((Date.now() - new Date(item.createdAt)) / 60000) : null
+  const ageLabel = age === null ? '' : age < 60 ? `${age}m ago` : age < 1440 ? `${Math.floor(age/60)}h ago` : `${Math.floor(age/1440)}d ago`
+  return (
+    <ItemRow accent={meta.color}>
+      <span style={{ fontSize: 16, flexShrink: 0 }}>{meta.icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {item.caption || item.subject || item.title || meta.label}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{meta.label}</div>
+      </div>
+      <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{ageLabel}</span>
+    </ItemRow>
+  )
+}
+
+// ─── Activity feed ────────────────────────────────────────────────────────────
+function buildActivityFeed(scripts, content, queue) {
+  const events = []
+
+  // Recently published content
+  content
+    .filter(c => c.status === 'published' && c.publishedAt)
+    .forEach(c => {
+      events.push({ id: c.id, ts: c.publishedAt, icon: '✅', text: `Published "${c.title}"`, sub: (c.platforms || []).join(', ') || c.platform || 'Content', color: 'var(--green)' })
+    })
+
+  // Recently completed scripts
+  scripts
+    .filter(s => s.status === 'ready')
+    .forEach(s => {
+      if (s.updatedAt || s.createdAt) {
+        events.push({ id: s.id, ts: s.updatedAt || s.createdAt, icon: '🎬', text: `Script ready: "${s.title}"`, sub: 'Ready to film', color: 'var(--blue)' })
+      }
+    })
+
+  // Recently sent queue items
+  queue.items
+    .filter(q => q.status === 'sent' && q.sentAt)
+    .forEach(q => {
+      const meta = QUEUE_TYPE_META[q.type] || { icon: '📋', label: q.type }
+      events.push({ id: q.id, ts: q.sentAt, icon: meta.icon, text: q.caption || q.subject || meta.label, sub: `Sent via ${meta.label}`, color: meta.color })
+    })
+
+  // Recently added to queue (pending)
+  queue.items
+    .filter(q => q.status === 'pending' && q.createdAt)
+    .slice(0, 3)
+    .forEach(q => {
+      const meta = QUEUE_TYPE_META[q.type] || { icon: '📋', label: q.type }
+      events.push({ id: q.id + '_p', ts: q.createdAt, icon: '🕐', text: `Queued: ${q.caption || q.subject || meta.label}`, sub: `Awaiting review · ${meta.label}`, color: '#f59e0b' })
+    })
+
+  return events
+    .sort((a, b) => (b.ts || '').localeCompare(a.ts || ''))
+    .slice(0, 6)
+}
+
+function timeSince(ts) {
+  if (!ts) return ''
+  const mins = Math.floor((Date.now() - new Date(ts)) / 60000)
+  if (mins < 1)   return 'just now'
+  if (mins < 60)  return `${mins}m ago`
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`
+  return `${Math.floor(mins / 1440)}d ago`
+}
+
 function QuickBtn({ label, icon, to }) {
   return (
     <Link to={to} style={{ textDecoration: 'none' }}>
@@ -377,7 +457,7 @@ function Empty({ message, cta, to }) {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [data, setData] = useState({ scripts: [], content: [], launches: [], ads: [], team: [] })
+  const [data, setData] = useState({ scripts: [], content: [], launches: [], ads: [], team: [], queue: { items: [] } })
   const [biz, setBiz] = useState(() => deriveBizStats())
 
   useEffect(() => {
@@ -387,11 +467,12 @@ export default function Dashboard() {
       launches: loadLaunches(),
       ads:      loadAds(),
       team:     getTeam(),
+      queue:    loadQueue(),
     })
     setBiz(deriveBizStats())
   }, [])
 
-  const { scripts, content, launches, ads, team } = data
+  const { scripts, content, launches, ads, team, queue } = data
   const td = todayStr()
 
   // Script stats
@@ -421,6 +502,15 @@ export default function Dashboard() {
 
   // Live/review ads
   const activeAds = ads.filter(a => a.status === 'live' || a.status === 'review').slice(0, 3)
+
+  // Queue stats
+  const queueItems     = queue.items || []
+  const pendingItems   = queueItems.filter(q => q.status === 'pending')
+  const approvedItems  = queueItems.filter(q => q.status === 'approved')
+  const sentThisMonth  = queueItems.filter(q => q.status === 'sent' && q.sentAt?.startsWith(thisMonth)).length
+
+  // Activity feed
+  const activityFeed = buildActivityFeed(scripts, content, queue)
 
   // Team workload
   const teamWithWork = team.map(m => ({
@@ -479,8 +569,8 @@ export default function Dashboard() {
         <StatCard label="Scripts Ready"     value={readyScripts}           sub="ready to film"  accent="var(--green)" />
         <StatCard label="Upcoming Shoots"   value={upcomingShoots.length}  sub="next 14 days"   accent="var(--red)" />
         <StatCard label="Content Scheduled" value={scheduledUpcoming}      sub="upcoming posts" accent="var(--purple)" />
-        <StatCard label="Ready to Upload"   value={readyToUpload}          sub="needs media"    accent="var(--amber)" />
-        <StatCard label="Published"         value={publishedThisMonth}     sub={thisMonth.replace('-', '/')} accent="var(--navy)" />
+        <StatCard label="Pending Review"    value={pendingItems.length}    sub="in action queue" accent={pendingItems.length > 0 ? '#f59e0b' : 'var(--green)'} />
+        <StatCard label="Sent This Month"   value={sentThisMonth}          sub={thisMonth.replace('-', '/')} accent="var(--navy)" />
       </div>
 
       {/* 2-col grid */}
@@ -531,19 +621,19 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Bottom row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      {/* Bottom row — Quick Actions + Team Workload */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
 
         {/* Quick actions */}
         <div className="card">
           <SectionTitle>Quick Actions</SectionTitle>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <QuickBtn label="New Script"   icon="▶"  to="/scripts"   />
-            <QuickBtn label="Add Content"  icon="＋" to="/content"   />
-            <QuickBtn label="New Launch"   icon="△"  to="/launches"  />
-            <QuickBtn label="New Ad"       icon="◈"  to="/ads"       />
-            <QuickBtn label="Products"     icon="⬡"  to="/products"  />
-            <QuickBtn label="Analytics"    icon="∿"  to="/analytics" />
+            <QuickBtn label="New Script"    icon="▶"  to="/scripts"   />
+            <QuickBtn label="Add Content"   icon="＋" to="/content"   />
+            <QuickBtn label="New Launch"    icon="△"  to="/launches"  />
+            <QuickBtn label="New Ad"        icon="◈"  to="/ads"       />
+            <QuickBtn label="Action Queue"  icon="☑"  to="/queue"     />
+            <QuickBtn label="Analytics"     icon="∿"  to="/analytics" />
           </div>
         </div>
 
@@ -574,6 +664,71 @@ export default function Dashboard() {
                           m.scripts > 0 ? `${m.scripts} script${m.scripts > 1 ? 's' : ''}` : null,
                           m.posts > 0   ? `${m.posts} post${m.posts > 1 ? 's' : ''}` : null,
                         ].filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+      </div>
+
+      {/* Queue + Activity row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+
+        {/* Pending queue items */}
+        <div className="card">
+          <SectionTitle action="View All" to="/queue">
+            Pending Review
+            {pendingItems.length > 0 && (
+              <span style={{
+                marginLeft: 8, fontSize: 10, fontWeight: 700,
+                background: '#f59e0b22', color: '#d97706',
+                padding: '2px 7px', borderRadius: 99,
+              }}>
+                {pendingItems.length}
+              </span>
+            )}
+          </SectionTitle>
+          {pendingItems.length === 0
+            ? <Empty message="No items pending review." cta="Open Queue" to="/queue" />
+            : <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {pendingItems.slice(0, 4).map(q => <QueueItemRow key={q.id} item={q} />)}
+                {pendingItems.length > 4 && (
+                  <Link to="/queue" style={{ fontSize: 12, color: 'var(--red)', fontWeight: 500, paddingTop: 4 }}>
+                    +{pendingItems.length - 4} more →
+                  </Link>
+                )}
+              </div>
+          }
+        </div>
+
+        {/* Recent activity */}
+        <div className="card">
+          <SectionTitle>Recent Activity</SectionTitle>
+          {activityFeed.length === 0
+            ? <Empty message="No recent activity. Start adding scripts, content, or queue items." />
+            : <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {activityFeed.map((ev, i) => (
+                  <div key={ev.id} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                    padding: '8px 0',
+                    borderBottom: i < activityFeed.length - 1 ? '1px solid var(--border)' : 'none',
+                  }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: '50%',
+                      background: `${ev.color}18`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 13, flexShrink: 0,
+                    }}>
+                      {ev.icon}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ev.text}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                        {ev.sub} · {timeSince(ev.ts)}
                       </div>
                     </div>
                   </div>
