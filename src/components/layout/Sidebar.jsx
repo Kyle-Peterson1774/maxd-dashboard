@@ -326,7 +326,31 @@ export default function Sidebar({ onNavClick }) {
             gap: 10,
             padding: '10px 1.25rem',
             marginTop: 4,
+            position: 'relative',
           }}>
+            <button
+              onClick={logout}
+              title="Sign out"
+              style={{
+                position: 'absolute',
+                right: 12,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'rgba(255,255,255,0.25)',
+                padding: 4,
+                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+                transition: 'color 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.25)'}
+            >
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <path d="M5 2H2a1 1 0 00-1 1v7a1 1 0 001 1h3M9 9.5l3-3-3-3M12 6.5H5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
             <div style={{
               width: 30, height: 30,
               borderRadius: '50%',
