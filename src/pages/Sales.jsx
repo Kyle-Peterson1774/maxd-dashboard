@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { dbSet, dbGet } from '../lib/db.js'
+import { getTeam } from '../lib/team.js'
 
 const STORE_KEY = 'maxd_sales'
 
@@ -68,7 +69,7 @@ const DEMO = {
 }
 
 function load() {
-  try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : DEMO } catch { return DEMO }
+  try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : EMPTY } catch { return EMPTY }
 }
 function save(d) { dbSet(STORE_KEY, d) }
 function nid() { return `i_${Date.now()}_${Math.random().toString(36).slice(2,5)}` }
@@ -142,7 +143,10 @@ function DealModal({ deal, accounts, contacts, onClose, onSave, onDelete }) {
             </label>
           </div>
           <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Assigned To
-            <input value={form.assignedTo} onChange={e => set('assignedTo', e.target.value)} placeholder="Team member name" style={inp} />
+            <select value={form.assignedTo} onChange={e => set('assignedTo', e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+              <option value="">— Unassigned —</option>
+              {getTeam().map(m => <option key={m.id} value={m.name}>{m.name} ({m.role})</option>)}
+            </select>
           </label>
           <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Notes
             <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }} />

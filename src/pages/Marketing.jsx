@@ -316,7 +316,20 @@ export default function Marketing() {
               <span>Campaign</span><span>Platform</span><span>Status</span><span>Budget</span><span>Spend</span><span>Revenue</span><span>ROAS</span><span>CPA</span>
             </div>
             {filteredCampaigns.length === 0 && (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No campaigns match your filters.</div>
+              <div style={{ padding: '2.5rem', textAlign: 'center' }}>
+                {data.campaigns.length === 0 ? (
+                  <>
+                    <div style={{ fontSize: 32, marginBottom: 10 }}>📊</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>No campaigns yet</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
+                      Add your first ad campaign to track spend, ROAS, and conversions across Meta, Google, and TikTok.
+                    </div>
+                    <button onClick={() => setCampaignModal({})} style={btnPrimary}>+ Add Campaign</button>
+                  </>
+                ) : (
+                  <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>No campaigns match your filters.</span>
+                )}
+              </div>
             )}
             {filteredCampaigns.map(c => {
               const roas = Number(c.spend) ? (Number(c.revenue) / Number(c.spend)).toFixed(2) : '—'

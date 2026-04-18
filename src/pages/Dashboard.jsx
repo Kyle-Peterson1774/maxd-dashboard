@@ -455,6 +455,47 @@ function Empty({ message, cta, to }) {
   )
 }
 
+// ─── Getting Started panel ────────────────────────────────────────────────────
+function GettingStarted() {
+  const steps = [
+    { icon: '🛒', title: 'Connect Shopify',       desc: 'Pull real orders, revenue & inventory automatically.',        to: '/settings', cta: 'Open Settings' },
+    { icon: '🎬', title: 'Write Your First Script', desc: 'Use the PAS framework or AI to plan your next video.',      to: '/scripts',  cta: 'New Script' },
+    { icon: '📅', title: 'Build Content Calendar',  desc: 'Schedule posts and track every piece of content.',           to: '/content',  cta: 'Add Content' },
+    { icon: '📦', title: 'Plan a Launch',           desc: 'Set up a product launch with a full checklist.',            to: '/launches', cta: 'New Launch' },
+    { icon: '📈', title: 'Track Social Growth',     desc: 'Log follower snapshots and sync live data from Instagram.', to: '/social',   cta: 'Open Social' },
+    { icon: '🤖', title: 'Set Up AI Studio',        desc: 'Connect your Anthropic key and generate copy at will.',    to: '/ai',       cta: 'Open AI Studio' },
+  ]
+  return (
+    <div>
+      <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem 2rem', textAlign: 'center', border: '1px solid rgba(226,27,77,0.18)' }}>
+        <div style={{ fontSize: 28, marginBottom: 8 }}>👋</div>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 20, color: 'var(--navy)', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 6 }}>
+          WELCOME TO MAXD DASHBOARD
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 480, margin: '0 auto' }}>
+          Your operations hub is ready. Start by connecting your data or adding your first content — everything flows from here.
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12, marginBottom: '1.5rem' }}>
+        {steps.map(s => (
+          <Link key={s.to} to={s.to} style={{ textDecoration: 'none' }}>
+            <div className="card" style={{ display: 'flex', gap: 14, padding: '1rem 1.25rem', transition: 'all 0.15s', cursor: 'pointer' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--red)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none' }}>
+              <div style={{ fontSize: 24, flexShrink: 0, lineHeight: 1.2 }}>{s.icon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)', marginBottom: 3 }}>{s.title}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>{s.desc}</div>
+                <div style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600, marginTop: 6 }}>{s.cta} →</div>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [data, setData] = useState({ scripts: [], content: [], launches: [], ads: [], team: [], queue: { items: [] } })
@@ -519,9 +560,14 @@ export default function Dashboard() {
     posts:   content.filter(c => c.assignedTo === m.id).length,
   })).filter(m => m.scripts + m.posts > 0)
 
+  const isFirstTime = scripts.length === 0 && content.length === 0 && launches.length === 0 && ads.length === 0 && queueItems.length === 0
+
   return (
     <div>
       <BrandBanner />
+
+      {/* First-time user: getting started guide */}
+      {isFirstTime && <GettingStarted />}
 
       {/* Business KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 12, marginBottom: 12 }}>

@@ -950,6 +950,24 @@ export default function Content() {
         <PipelineBar items={items} activeStatus={statusFilter !== 'all' ? statusFilter : null} onStageClick={handleStageClick} />
       </div>
 
+      {/* First-use empty state */}
+      {items.length === 0 && (
+        <div className="card" style={{ textAlign: 'center', padding: '3.5rem', marginBottom: '1.25rem' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📅</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)', marginBottom: 6, fontFamily: 'var(--font-heading)', letterSpacing: '0.04em' }}>
+            No Content Yet
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20, maxWidth: 400, margin: '0 auto 20px' }}>
+            Plan your content calendar, track posts from idea to published, and manage your full pipeline across TikTok, Instagram, and YouTube.
+          </div>
+          <button
+            onClick={() => { setPrefillDate(''); setModal('new') }}
+            style={{ padding: '10px 28px', borderRadius: 8, background: 'var(--red)', border: 'none', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+            + Add Your First Post
+          </button>
+        </div>
+      )}
+
       {/* Filters + view toggle */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
