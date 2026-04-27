@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { getTeam, saveTeam, initials, memberColor } from '../lib/team.js'
-import { getApprovedUsers, saveApprovedUsers, ROLE_LABELS } from '../lib/auth.jsx'
+import { ROLE_LABELS, PERMISSIONS, useAuth } from '../lib/auth.jsx'
+import { getOrgMembers, upsertOrgMember, deleteOrgMember } from '../lib/supabase.js'
 import {
   INTEGRATIONS,
   INTEGRATION_CATEGORIES,
@@ -568,113 +569,288 @@ function MemberModal({ member, onClose, onSave, onDelete }) {
 // ── Section: Access Control ───────────────────────────────────────────────────
 const ROLE_COLORS = { admin: '#E21B4D', content: '#3b82f6', marketing: '#8b5cf6', ops: '#22c55e' }
 
+// All pages with display labels and grouping
+const ALL_PAGES = [
+  { key: 'dashboard',  label: 'Dashboard',    group: 'Core' },
+  { key: 'sales',      label: 'Sales',         group: 'Business' },
+  { key: 'finance',    label: 'Finance',        group: 'Business' },
+  { key: 'operations', label: 'Operations',     group: 'Business' },
+  { key: 'marketing',  label: 'Marketing',      group: 'Marketing' },
+  { key: 'ads',        label: 'Ads',            group: 'Marketing' },
+  { key: 'analytics',  label: 'Analytics',      group: 'Marketing' },
+  { key: 'social',     label: 'Social',         group: 'Content' },
+  { key: 'content',    label: 'Content',        group: 'Content' },
+  { key: 'scripts',    label: 'Scripts',        group: 'Content' },
+  { key: 'launches',   label: 'Launches',       group: 'Content' },
+  { key: 'products',   label: 'Products',       group: 'Content' },
+  { key: 'ai',         label: 'AI Studio',      group: 'Tools' },
+  { key: 'queue',      label: 'Action Queue',   group: 'Tools' },
+  { key: 'settings',   label: 'Settings',       group: 'Admin' },
+]
+const PAGE_GROUPS = ['Core', 'Business', 'Marketing', 'Content', 'Tools', 'Admin']
+
+// Modal for inviting a new member or editing an existing one
+function MemberAccessModal({ member, onClose, onSave, currentUserEmail }) {
+  const isNew = !member?.email
+  const [email, setEmail]   = useState(member?.email || '')
+  const [name, setName]     = useState(member?.name || '')
+  const [role, setRole]     = useState(member?.role || 'content')
+  const [pages, setPages]   = useState(member?.pages || PERMISSIONS['content'] || [])
+  const [saving, setSaving] = useState(false)
+  const [error, setError]   = useState('')
+
+  const isOwner = member?.email === currentUserEmail
+
+  // When role changes, reset pages to the default for that role
+  const handleRoleChange = (r) => {
+    setRole(r)
+    setPages(PERMISSIONS[r] || [])
+  }
+
+  const togglePage = (key) => {
+    setPages(p => p.includes(key) ? p.filter(k => k !== key) : [...p, key])
+  }
+
+  const handleSave = async () => {
+    if (!email.includes('@')) { setError('Enter a valid email address'); return }
+    setSaving(true)
+    await onSave({ email: email.trim().toLowerCase(), name: name.trim(), role, pages, status: isNew ? 'invited' : (member?.status || 'active') })
+    setSaving(false)
+  }
+
+  const inp = { display: 'block', width: '100%', padding: '0.45rem 0.65rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box', marginTop: 4 }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 14, width: '100%', maxWidth: 520, boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
+
+        {/* Header */}
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {isNew ? 'Invite Team Member' : `Edit — ${member.name || member.email}`}
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1 }}>×</button>
+        </div>
+
+        <div style={{ padding: '1.25rem 1.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
+
+          {/* Email + Name */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Email
+              {isNew
+                ? <input value={email} onChange={e => { setEmail(e.target.value); setError('') }} placeholder="teammate@company.com" autoComplete="off" style={inp} />
+                : <div style={{ ...inp, background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }}>{email}</div>
+              }
+            </label>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Name
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="First Last" autoComplete="off" disabled={isOwner} style={{ ...inp, opacity: isOwner ? 0.5 : 1 }} />
+            </label>
+          </div>
+
+          {/* Role selector */}
+          <label style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '1rem' }}>
+            Role
+            <select value={role} onChange={e => handleRoleChange(e.target.value)} disabled={isOwner} style={{ ...inp, opacity: isOwner ? 0.5 : 1 }}>
+              {Object.entries(ROLE_LABELS).map(([k]) => (
+                <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} — {ROLE_LABELS[k]}</option>
+              ))}
+            </select>
+            <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>Selecting a role sets a default — you can customize pages below.</div>
+          </label>
+
+          {/* Page permission picker */}
+          <div style={{ marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>Page Access</span>
+              {!isOwner && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setPages(ALL_PAGES.map(p => p.key))} style={{ fontSize: 11, padding: '2px 8px', background: 'none', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer' }}>All</button>
+                  <button onClick={() => setPages([])} style={{ fontSize: 11, padding: '2px 8px', background: 'none', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer' }}>None</button>
+                </div>
+              )}
+            </div>
+
+            {PAGE_GROUPS.map(group => {
+              const groupPages = ALL_PAGES.filter(p => p.group === group)
+              return (
+                <div key={group} style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>{group}</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {groupPages.map(p => {
+                      const active = isOwner || pages.includes(p.key)
+                      return (
+                        <button
+                          key={p.key}
+                          onClick={() => !isOwner && togglePage(p.key)}
+                          style={{
+                            padding: '4px 10px', borderRadius: 20, fontSize: 12, cursor: isOwner ? 'default' : 'pointer',
+                            border: `1px solid ${active ? 'var(--navy)' : 'var(--border)'}`,
+                            background: active ? 'var(--navy)' : 'var(--surface-2)',
+                            color: active ? '#fff' : 'var(--text-muted)',
+                            fontWeight: active ? 600 : 400,
+                            transition: 'all 0.1s',
+                          }}
+                        >
+                          {p.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {error && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--red)' }}>{error}</div>}
+
+          {isNew && (
+            <div style={{ marginTop: 8, padding: '0.5rem 0.75rem', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 6, fontSize: 11, color: 'rgba(147,197,253,0.9)', lineHeight: 1.5 }}>
+              Share the dashboard URL with this person. They click "Sign up" using this email and create a password — their access will activate automatically.
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button onClick={onClose} style={{ padding: '0.45rem 1rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>Cancel</button>
+          {!isOwner && (
+            <button onClick={handleSave} disabled={saving} style={{ padding: '0.45rem 1.25rem', background: 'var(--navy)', border: 'none', borderRadius: 6, fontSize: 13, color: '#fff', cursor: saving ? 'wait' : 'pointer', fontWeight: 600, opacity: saving ? 0.7 : 1 }}>
+              {saving ? 'Saving…' : isNew ? 'Send Invite' : 'Save Changes'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AccessControl() {
-  const [approved, setApproved] = useState(getApprovedUsers)
-  const [newEmail, setNewEmail] = useState('')
-  const [newName, setNewName] = useState('')
-  const [newRole, setNewRole] = useState('content')
-  const [adding, setAdding] = useState(false)
-  const [error, setError] = useState('')
+  const { user } = useAuth()
+  const [members, setMembers]     = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [editMember, setEditMember] = useState(null)  // null = closed, {} = new, {...} = editing
+  const [error, setError]         = useState('')
 
-  const persist = (list) => { setApproved(list); saveApprovedUsers(list) }
+  const isSupabaseBased = !!user?.orgId
 
-  const add = () => {
-    const email = newEmail.trim().toLowerCase()
-    if (!email || !email.includes('@')) { setError('Enter a valid email address'); return }
-    if (approved.some(u => u.email.toLowerCase() === email)) { setError('That email is already on the list'); return }
-    persist([...approved, { email, name: newName.trim() || '', role: newRole }])
-    setNewEmail(''); setNewName(''); setError('')
-    setAdding(false)
+  useEffect(() => {
+    if (!isSupabaseBased) { setLoading(false); return }
+    getOrgMembers(user.orgId, user.accessToken)
+      .then(data => { setMembers(data); setLoading(false) })
+  }, [user?.orgId])
+
+  const handleSave = async (memberData) => {
+    if (!isSupabaseBased) return
+    const result = await upsertOrgMember(user.orgId, memberData, user.accessToken)
+    if (result.error) { setError(result.error); return }
+    // Refresh
+    const updated = await getOrgMembers(user.orgId, user.accessToken)
+    setMembers(updated)
+    setEditMember(null)
+    setError('')
   }
 
-  const remove = (email) => {
-    if (email.toLowerCase() === 'kyle@trymaxd.com') return // owner can't be removed
-    persist(approved.filter(u => u.email.toLowerCase() !== email.toLowerCase()))
+  const handleRemove = async (email) => {
+    if (!isSupabaseBased) return
+    await deleteOrgMember(user.orgId, email, user.accessToken)
+    setMembers(m => m.filter(u => u.email !== email))
   }
 
-  const updateRole = (email, role) => {
-    persist(approved.map(u => u.email.toLowerCase() === email.toLowerCase() ? { ...u, role } : u))
+  if (!isSupabaseBased) {
+    return (
+      <div style={{ marginBottom: '2rem', padding: '1rem', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: 10, fontSize: 13, color: 'var(--text-secondary)' }}>
+        Connect Supabase (Cloud Sync section below) to enable team access control.
+      </div>
+    )
   }
-
-  const inp = { display: 'block', padding: '0.45rem 0.6rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box' }
 
   return (
     <div style={{ marginBottom: '2rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>🔒 Access Control</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Only emails on this list can sign up or log in. Roles control which pages they see.</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Access Control</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+            Invite teammates and control exactly which pages each person can access.
+          </div>
         </div>
-        <button onClick={() => setAdding(a => !a)} style={{ padding: '0.4rem 0.9rem', background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
-          {adding ? 'Cancel' : '+ Invite'}
+        <button onClick={() => setEditMember({})} style={{ padding: '0.4rem 0.9rem', background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
+          + Invite
         </button>
       </div>
 
-      {/* Add form */}
-      {adding && (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '1rem', marginBottom: '0.75rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 130px auto', gap: '0.5rem', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Email
-              <input value={newEmail} onChange={e => { setNewEmail(e.target.value); setError('') }} onKeyDown={e => e.key === 'Enter' && add()} placeholder="teammate@trymaxd.com" autoComplete="off" style={{ ...inp, width: '100%', marginTop: 4 }} />
-            </label>
-            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Name (optional)
-              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="First Last" autoComplete="off" style={{ ...inp, width: '100%', marginTop: 4 }} />
-            </label>
-            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Role
-              <select value={newRole} onChange={e => setNewRole(e.target.value)} style={{ ...inp, width: '100%', marginTop: 4 }}>
-                {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>)}
-              </select>
-            </label>
-            <button onClick={add} style={{ padding: '0.45rem 0.9rem', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600, marginTop: 18 }}>Add</button>
-          </div>
-          {error && <div style={{ marginTop: 6, fontSize: 12, color: 'var(--red)' }}>{error}</div>}
-          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
-            After you add them, share the dashboard URL and tell them to click "Sign up" with this email address.
-          </div>
-        </div>
-      )}
+      {error && <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--red)' }}>{error}</div>}
 
-      {/* Approved list */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 130px 60px', padding: '0.5rem 1rem', borderBottom: '1px solid var(--border)', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          <span>Email</span><span>Name</span><span>Role</span><span></span>
+        {/* Header row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 80px', padding: '0.5rem 1rem', borderBottom: '1px solid var(--border)', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span>Member</span><span>Role</span><span>Status</span><span></span>
         </div>
-        {approved.map(u => {
-          const isOwner = u.email.toLowerCase() === 'kyle@trymaxd.com'
+
+        {loading && (
+          <div style={{ padding: '1.5rem', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>Loading…</div>
+        )}
+
+        {!loading && members.map(m => {
+          const isYou = m.email === user.email
+          const roleColor = ROLE_COLORS[m.role] || 'var(--navy)'
+          const pageCount = m.pages?.length || 0
+
           return (
-            <div key={u.email} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 130px 60px', padding: '0.65rem 1rem', borderBottom: '1px solid var(--border)', alignItems: 'center', fontSize: 13 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: ROLE_COLORS[u.role] || 'var(--navy)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
-                  {(u.name || u.email).slice(0,2).toUpperCase()}
+            <div key={m.email} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 80px', padding: '0.65rem 1rem', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: roleColor, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                  {(m.name || m.email).slice(0, 2).toUpperCase()}
                 </div>
-                <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{u.email}</span>
-                {isOwner && <span style={{ fontSize: 10, background: '#E21B4D22', color: '#E21B4D', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>OWNER</span>}
+                <div>
+                  <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>
+                    {m.name || m.email}
+                    {isYou && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--text-muted)' }}>(you)</span>}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.name ? m.email : ''}</div>
+                </div>
               </div>
-              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{u.name || '—'}</span>
               <div>
-                {isOwner ? (
-                  <span style={{ fontSize: 12, color: ROLE_COLORS.admin, fontWeight: 700 }}>Admin</span>
-                ) : (
-                  <select value={u.role} onChange={e => updateRole(u.email, e.target.value)} style={{ ...inp, padding: '2px 6px', fontSize: 12, marginTop: 0 }}>
-                    {Object.keys(ROLE_LABELS).map(k => <option key={k} value={k}>{k.charAt(0).toUpperCase()+k.slice(1)}</option>)}
-                  </select>
-                )}
+                <span style={{ fontSize: 11, fontWeight: 700, color: roleColor, background: roleColor + '18', padding: '2px 8px', borderRadius: 20 }}>
+                  {m.role}
+                </span>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{pageCount} page{pageCount !== 1 ? 's' : ''}</div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                {!isOwner && (
-                  <button onClick={() => remove(u.email)} style={{ fontSize: 11, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--red)', cursor: 'pointer' }}>
-                    Remove
+              <span style={{ fontSize: 12, color: m.status === 'active' ? '#22c55e' : 'var(--text-muted)' }}>
+                {m.status === 'active' ? 'Active' : 'Invited'}
+              </span>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                <button onClick={() => setEditMember(m)} style={{ fontSize: 11, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                  Edit
+                </button>
+                {!isYou && (
+                  <button onClick={() => handleRemove(m.email)} style={{ fontSize: 11, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--red)', cursor: 'pointer' }}>
+                    ×
                   </button>
                 )}
               </div>
             </div>
           )
         })}
+
+        {!loading && members.length === 0 && (
+          <div style={{ padding: '1.5rem', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
+            No team members yet. Click "+ Invite" to add someone.
+          </div>
+        )}
       </div>
 
-      <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.9rem', background: 'rgba(226,27,77,0.06)', border: '1px solid rgba(226,27,77,0.15)', borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-        <strong>How it works:</strong> Add a teammate's email here, then share the dashboard URL with them. They click "Sign up", use that email, and create a password. Their role is set here — they can't change it themselves.
+      <div style={{ marginTop: '0.75rem', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+        Share the dashboard URL with invited members. They sign up using the exact email you entered and their access activates automatically.
       </div>
+
+      {editMember !== null && (
+        <MemberAccessModal
+          member={Object.keys(editMember).length ? editMember : null}
+          onClose={() => { setEditMember(null); setError('') }}
+          onSave={handleSave}
+          currentUserEmail={user.email}
+        />
+      )}
     </div>
   )
 }
