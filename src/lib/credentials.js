@@ -1,16 +1,116 @@
-// ============================================
+// ============================================================
 // CREDENTIALS STORE
-// Saves API keys / tokens to localStorage.
-// Keys are never sent anywhere except the
-// specific service they belong to.
-// ============================================
+//
+// Integration API keys (Shopify, Klaviyo, Meta Ads, etc.) are
+// held in module-level memory during a session and persisted
+// to Supabase org_credentials — never in localStorage.
+//
+// The Supabase project URL and anon key are the ONLY values
+// stored in localStorage, because they are public by design
+// (Supabase's anon key is meant to be client-visible; RLS
+// policies protect all data) and are needed before login.
+//
+// Public API (unchanged from before — all callers still work):
+//   getCredentials(service)          — synchronous, from memory
+//   saveCredentials(service, data)   — saves to memory + cloud
+//   clearCredentials(service)        — removes from memory + cloud
+//   isConnected(service)             — synchronous, from memory
+//   getConnectedCount()              — synchronous, from memory
+//   verifyConnection(service, creds) — async, validates key
+//   INTEGRATIONS, INTEGRATION_CATEGORIES — integration definitions
+// ============================================================
 
-const PREFIX = 'maxd_cred_'
+import {
+  saveOrgCredential,
+  deleteOrgCredential,
+} from './supabase.js'
+
+// ── Module-level session state ────────────────────────────────────────────────
+// Set by initCredentials() immediately after login. Cleared on logout.
+
+let _store = {}         // { shopify: {...}, klaviyo: {...}, ... }
+let _orgId = null
+let _accessToken = null
+
+const SUPABASE_LS_KEY = 'maxd_cred_supabase'  // localStorage key for Supabase config only
+
+// Called by auth.jsx after a successful login to hydrate the store
+// with credentials loaded from Supabase org_credentials.
+export function initCredentials(orgId, accessToken, cloudCreds = {}) {
+  _orgId = orgId
+  _accessToken = accessToken
+  _store = { ...cloudCreds }
+
+  // Always merge in the Supabase config from localStorage (it lives there by design)
+  try {
+    const raw = localStorage.getItem(SUPABASE_LS_KEY)
+    if (raw) _store['supabase'] = JSON.parse(raw)
+  } catch {}
+}
+
+// Called by auth.jsx on logout
+export function clearCredentialStore() {
+  _store = {}
+  _orgId = null
+  _accessToken = null
+}
+
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+export function getCredentials(service) {
+  if (service === 'supabase') {
+    // Always read Supabase config from memory (hydrated from localStorage on init)
+    // or fall back to localStorage directly (needed before login)
+    if (_store.supabase) return _store.supabase
+    try {
+      const raw = localStorage.getItem(SUPABASE_LS_KEY)
+      return raw ? JSON.parse(raw) : null
+    } catch { return null }
+  }
+  return _store[service] || null
+}
+
+export function saveCredentials(service, data) {
+  _store[service] = data
+
+  if (service === 'supabase') {
+    // Supabase config is intentionally stored in localStorage (public values)
+    localStorage.setItem(SUPABASE_LS_KEY, JSON.stringify(data))
+    return
+  }
+
+  // Everything else: persist to Supabase org_credentials (fire-and-forget)
+  if (_orgId && _accessToken) {
+    saveOrgCredential(_orgId, service, data, _accessToken).catch(() => {})
+  }
+}
+
+export function clearCredentials(service) {
+  delete _store[service]
+
+  if (service === 'supabase') {
+    localStorage.removeItem(SUPABASE_LS_KEY)
+    return
+  }
+
+  if (_orgId && _accessToken) {
+    deleteOrgCredential(_orgId, service, _accessToken).catch(() => {})
+  }
+}
+
+export function isConnected(service) {
+  const creds = _store[service]
+  if (!creds) return false
+  return Object.values(creds).some(v => v && String(v).trim() !== '')
+}
+
+export function getConnectedCount() {
+  return Object.keys(INTEGRATIONS).filter(isConnected).length
+}
+
 
 // ── Verification helpers ──────────────────────────────────────────────────────
-// Each integration can define a `verify(creds)` function that returns
-// { ok: true } or { ok: false, error: 'Human-readable reason' }
-// Runs before saving — catches bad keys before they silently fail.
 
 async function verifyAnthropic(creds) {
   const key = creds.apiKey?.trim()
@@ -20,11 +120,10 @@ async function verifyAnthropic(creds) {
     const res = await fetch('https://api.anthropic.com/v1/models', {
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
     })
-    if (res.status === 401) return { ok: false, error: 'Invalid API key — authentication failed. Check the key is correct and active.' }
-    if (res.status === 403) return { ok: false, error: 'API key exists but lacks permission. Make sure it has model access.' }
+    if (res.status === 401) return { ok: false, error: 'Invalid API key — authentication failed.' }
+    if (res.status === 403) return { ok: false, error: 'API key exists but lacks permission.' }
     return { ok: true }
   } catch {
-    // CORS may block the request in some environments — format already validated above
     return { ok: true, warning: 'Could not verify over the network (CORS), but key format looks correct.' }
   }
 }
@@ -32,12 +131,12 @@ async function verifyAnthropic(creds) {
 async function verifyNotion(creds) {
   const key = creds.apiKey?.trim()
   if (!key) return { ok: false, error: 'Integration token is required.' }
-  if (!key.startsWith('secret_') && !key.startsWith('ntn_')) return { ok: false, error: 'Token should start with "secret_" or "ntn_". Copy it directly from your Notion integration page.' }
+  if (!key.startsWith('secret_') && !key.startsWith('ntn_')) return { ok: false, error: 'Token should start with "secret_" or "ntn_".' }
   try {
     const res = await fetch('https://api.notion.com/v1/users/me', {
       headers: { Authorization: `Bearer ${key}`, 'Notion-Version': '2022-06-28' },
     })
-    if (res.status === 401) return { ok: false, error: 'Invalid token — authentication failed. Make sure you copied the full token.' }
+    if (res.status === 401) return { ok: false, error: 'Invalid token — authentication failed.' }
     return { ok: true }
   } catch {
     return { ok: true, warning: 'Network check blocked, but token format looks correct.' }
@@ -75,18 +174,18 @@ function verifyNonEmpty(creds, fields) {
   return { ok: true }
 }
 
+
 // ── Integration definitions ───────────────────────────────────────────────────
+
 export const INTEGRATIONS = {
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // E-COMMERCE
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── E-Commerce ───────────────────────────────────────────────────────────────
   shopify: {
     label: 'Shopify',       category: 'ecommerce', color: '#639922',
     desc: 'Orders, products, revenue sync', icon: '🛍', quickLink: true,
     fields: [
-      { key: 'storeUrl', label: 'Store URL', placeholder: 'your-store.myshopify.com', type: 'text' },
-      { key: 'apiKey',   label: 'Admin API Access Token (optional)', placeholder: 'shpat_...', type: 'password' },
+      { key: 'storeUrl', label: 'Store URL',                          placeholder: 'your-store.myshopify.com', type: 'text'     },
+      { key: 'apiKey',   label: 'Admin API Access Token (optional)',   placeholder: 'shpat_...',                type: 'password' },
     ],
     helpUrl: 'https://shopify.dev/docs/api/admin-rest',
     helpText: 'Enter your store URL. For data sync, add an Admin API access token from Shopify Admin → Settings → Apps → Develop apps.',
@@ -96,9 +195,9 @@ export const INTEGRATIONS = {
     label: 'WooCommerce',   category: 'ecommerce', color: '#7F54B3',
     desc: 'WordPress / WooCommerce store data', icon: '🛒',
     fields: [
-      { key: 'siteUrl',       label: 'Site URL',          placeholder: 'https://yourstore.com',    type: 'text'     },
-      { key: 'consumerKey',   label: 'Consumer Key',      placeholder: 'ck_...',                   type: 'password' },
-      { key: 'consumerSecret',label: 'Consumer Secret',   placeholder: 'cs_...',                   type: 'password' },
+      { key: 'siteUrl',        label: 'Site URL',        placeholder: 'https://yourstore.com', type: 'text'     },
+      { key: 'consumerKey',    label: 'Consumer Key',    placeholder: 'ck_...',                type: 'password' },
+      { key: 'consumerSecret', label: 'Consumer Secret', placeholder: 'cs_...',                type: 'password' },
     ],
     helpUrl: 'https://woocommerce.com/document/woocommerce-rest-api/',
     helpText: 'WooCommerce → Settings → Advanced → REST API → Add key',
@@ -108,8 +207,8 @@ export const INTEGRATIONS = {
     label: 'BigCommerce',   category: 'ecommerce', color: '#34313F',
     desc: 'BigCommerce store orders & products', icon: '🏪',
     fields: [
-      { key: 'storeHash',   label: 'Store Hash',   placeholder: 'abc123xyz',       type: 'text'     },
-      { key: 'accessToken', label: 'Access Token', placeholder: 'xxxxxxxxxxx',     type: 'password' },
+      { key: 'storeHash',   label: 'Store Hash',   placeholder: 'abc123xyz',   type: 'text'     },
+      { key: 'accessToken', label: 'Access Token', placeholder: 'xxxxxxxxxxx', type: 'password' },
     ],
     helpUrl: 'https://developer.bigcommerce.com/docs/rest-authentication',
     helpText: 'BigCommerce → Settings → API Accounts → Create API Account',
@@ -129,9 +228,9 @@ export const INTEGRATIONS = {
     label: 'Amazon Seller', category: 'ecommerce', color: '#FF9900',
     desc: 'Amazon seller orders & performance', icon: '📦',
     fields: [
-      { key: 'sellerId',    label: 'Seller ID',        placeholder: 'AXXXXXXXXXXXX',        type: 'text'     },
-      { key: 'accessKey',   label: 'LWA Access Token', placeholder: 'Atza|...',             type: 'password' },
-      { key: 'marketplace', label: 'Marketplace ID',   placeholder: 'ATVPDKIKX0DER (US)',  type: 'text'     },
+      { key: 'sellerId',    label: 'Seller ID',        placeholder: 'AXXXXXXXXXXXX',       type: 'text'     },
+      { key: 'accessKey',   label: 'LWA Access Token', placeholder: 'Atza|...',            type: 'password' },
+      { key: 'marketplace', label: 'Marketplace ID',   placeholder: 'ATVPDKIKX0DER (US)', type: 'text'     },
     ],
     helpUrl: 'https://developer-docs.amazon.com/sp-api/docs',
     helpText: 'Seller Central → Settings → User Permissions → Grant developer access → Login with Amazon credentials',
@@ -141,8 +240,8 @@ export const INTEGRATIONS = {
     label: 'Etsy',          category: 'ecommerce', color: '#F56400',
     desc: 'Etsy shop orders and listings', icon: '🧶',
     fields: [
-      { key: 'apiKey',      label: 'API Key',      placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxx',  type: 'password' },
-      { key: 'accessToken', label: 'Access Token', placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxx',  type: 'password' },
+      { key: 'apiKey',      label: 'API Key',      placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxx', type: 'password' },
+      { key: 'accessToken', label: 'Access Token', placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxx', type: 'password' },
     ],
     helpUrl: 'https://developers.etsy.com/documentation',
     helpText: 'Etsy Developer Portal → Create App → Copy API Key and generate Access Token',
@@ -152,17 +251,15 @@ export const INTEGRATIONS = {
     label: 'Square',        category: 'ecommerce', color: '#3E4348',
     desc: 'Square POS and online store', icon: '⬛',
     fields: [
-      { key: 'accessToken', label: 'Access Token',    placeholder: 'EAAAl...',        type: 'password' },
-      { key: 'locationId',  label: 'Location ID',     placeholder: 'LXXXXXXXXXXXXXXXX', type: 'text' },
+      { key: 'accessToken', label: 'Access Token', placeholder: 'EAAAl...',           type: 'password' },
+      { key: 'locationId',  label: 'Location ID',  placeholder: 'LXXXXXXXXXXXXXXXX',  type: 'text'     },
     ],
     helpUrl: 'https://developer.squareup.com/docs/get-started',
     helpText: 'Square Developer Portal → Applications → your app → Credentials → Access Token',
     verify: (c) => verifyNonEmpty(c, ['accessToken']),
   },
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // MARKETING & EMAIL
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── Marketing & Email ─────────────────────────────────────────────────────────
   klaviyo: {
     label: 'Klaviyo',       category: 'marketing', color: '#D4537E',
     desc: 'Email/SMS lists, open rates, campaigns', icon: '📧',
@@ -177,8 +274,8 @@ export const INTEGRATIONS = {
     label: 'Mailchimp',     category: 'marketing', color: '#FFE01B',
     desc: 'Email campaigns, audience & open rates', icon: '🐒',
     fields: [
-      { key: 'apiKey',     label: 'API Key',       placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-us1', type: 'password' },
-      { key: 'listId',     label: 'Audience ID',   placeholder: 'abc12345',                             type: 'text'     },
+      { key: 'apiKey',  label: 'API Key',     placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-us1', type: 'password' },
+      { key: 'listId',  label: 'Audience ID', placeholder: 'abc12345',                             type: 'text'     },
     ],
     helpUrl: 'https://mailchimp.com/help/about-api-keys/',
     helpText: 'Mailchimp → Profile → Extras → API Keys → Create A Key',
@@ -188,8 +285,8 @@ export const INTEGRATIONS = {
     label: 'ActiveCampaign', category: 'marketing', color: '#356AE6',
     desc: 'Email automation and CRM', icon: '⚡',
     fields: [
-      { key: 'apiUrl', label: 'Account URL',  placeholder: 'https://youracccount.api-us1.com', type: 'text'     },
-      { key: 'apiKey', label: 'API Key',      placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',  type: 'password' },
+      { key: 'apiUrl', label: 'Account URL', placeholder: 'https://youracccount.api-us1.com', type: 'text'     },
+      { key: 'apiKey', label: 'API Key',     placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',  type: 'password' },
     ],
     helpUrl: 'https://help.activecampaign.com/hc/en-us/articles/207317590',
     helpText: 'ActiveCampaign → Settings → Developer → API URL and Key',
@@ -220,8 +317,8 @@ export const INTEGRATIONS = {
     label: 'Meta Ads',      category: 'marketing', color: '#1877F2',
     desc: 'Instagram & Facebook ad spend, ROAS', icon: '◎',
     fields: [
-      { key: 'accessToken',  label: 'Access Token',  placeholder: 'EAAx...',       type: 'password' },
-      { key: 'adAccountId',  label: 'Ad Account ID', placeholder: 'act_123456789', type: 'text'     },
+      { key: 'accessToken', label: 'Access Token',  placeholder: 'EAAx...',       type: 'password' },
+      { key: 'adAccountId', label: 'Ad Account ID', placeholder: 'act_123456789', type: 'text'     },
     ],
     helpUrl: 'https://developers.facebook.com/docs/marketing-api/get-started',
     helpText: 'Meta Business Suite → Settings → Business Assets → Ad Accounts',
@@ -231,9 +328,9 @@ export const INTEGRATIONS = {
     label: 'Google Ads',    category: 'marketing', color: '#4285F4',
     desc: 'Google Ads campaigns, spend & ROAS', icon: '🎯',
     fields: [
-      { key: 'customerId',      label: 'Customer ID',          placeholder: '123-456-7890',    type: 'text'     },
-      { key: 'developerToken',  label: 'Developer Token',      placeholder: 'xxxxxxxxxxxxxxxxx', type: 'password' },
-      { key: 'accessToken',     label: 'OAuth Access Token',   placeholder: 'ya29...',         type: 'password' },
+      { key: 'customerId',     label: 'Customer ID',        placeholder: '123-456-7890',      type: 'text'     },
+      { key: 'developerToken', label: 'Developer Token',    placeholder: 'xxxxxxxxxxxxxxxxx', type: 'password' },
+      { key: 'accessToken',    label: 'OAuth Access Token', placeholder: 'ya29...',           type: 'password' },
     ],
     helpUrl: 'https://developers.google.com/google-ads/api/docs/get-started/introduction',
     helpText: 'Google Ads → Tools & Settings → API Center → Developer Token',
@@ -243,8 +340,8 @@ export const INTEGRATIONS = {
     label: 'TikTok Ads',    category: 'marketing', color: '#010101',
     desc: 'TikTok paid campaigns and spend', icon: '🎵',
     fields: [
-      { key: 'accessToken',  label: 'Access Token',   placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', type: 'password' },
-      { key: 'advertiserId', label: 'Advertiser ID',  placeholder: '1234567890123',                    type: 'text'     },
+      { key: 'accessToken',  label: 'Access Token',  placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', type: 'password' },
+      { key: 'advertiserId', label: 'Advertiser ID', placeholder: '1234567890123',                    type: 'text'     },
     ],
     helpUrl: 'https://ads.tiktok.com/marketing_api/docs?id=1738855099573250',
     helpText: 'TikTok Ads Manager → Tools → API → Create App → Get Access Token',
@@ -254,8 +351,8 @@ export const INTEGRATIONS = {
     label: 'Pinterest Ads', category: 'marketing', color: '#E60023',
     desc: 'Pinterest ad campaigns and analytics', icon: '📌',
     fields: [
-      { key: 'accessToken', label: 'Access Token', placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', type: 'password' },
-      { key: 'adAccountId', label: 'Ad Account ID', placeholder: '549755813599',                   type: 'text'     },
+      { key: 'accessToken', label: 'Access Token',  placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', type: 'password' },
+      { key: 'adAccountId', label: 'Ad Account ID', placeholder: '549755813599',                     type: 'text'     },
     ],
     helpUrl: 'https://developers.pinterest.com/docs/getting-started/authentication/',
     helpText: 'Pinterest Developers → Apps → Generate Token → Ad Accounts',
@@ -265,23 +362,21 @@ export const INTEGRATIONS = {
     label: 'Snapchat Ads',  category: 'marketing', color: '#FFFC00',
     desc: 'Snapchat ad spend and performance', icon: '👻',
     fields: [
-      { key: 'accessToken',  label: 'Access Token',  placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', type: 'password' },
-      { key: 'adAccountId',  label: 'Ad Account ID', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', type: 'text'  },
+      { key: 'accessToken', label: 'Access Token',  placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',      type: 'password' },
+      { key: 'adAccountId', label: 'Ad Account ID', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', type: 'text'     },
     ],
     helpUrl: 'https://marketingapi.snapchat.com/docs/',
     helpText: 'Snap Business Manager → Business Details → Snap API',
     verify: (c) => verifyNonEmpty(c, ['accessToken', 'adAccountId']),
   },
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // ANALYTICS
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── Analytics ─────────────────────────────────────────────────────────────────
   googleAnalytics: {
     label: 'Google Analytics', category: 'analytics', color: '#D85A30',
     desc: 'Website traffic, conversions & events', icon: '◈',
     fields: [
-      { key: 'propertyId', label: 'Measurement ID', placeholder: 'G-XXXXXXXXXX',  type: 'text'     },
-      { key: 'apiSecret',  label: 'API Secret',     placeholder: 'xxxxxx',         type: 'password' },
+      { key: 'propertyId', label: 'Measurement ID', placeholder: 'G-XXXXXXXXXX', type: 'text'     },
+      { key: 'apiSecret',  label: 'API Secret',     placeholder: 'xxxxxx',        type: 'password' },
     ],
     helpUrl: 'https://support.google.com/analytics/answer/9304153',
     helpText: 'GA4 → Admin → Data Streams → your stream → Measurement Protocol API secrets',
@@ -306,8 +401,8 @@ export const INTEGRATIONS = {
     label: 'Northbeam',      category: 'analytics', color: '#6366F1',
     desc: 'Multi-touch attribution and forecasting', icon: '🔭',
     fields: [
-      { key: 'apiKey',    label: 'API Key',    placeholder: 'nb_...', type: 'password' },
-      { key: 'accountId', label: 'Account ID', placeholder: 'your-brand', type: 'text' },
+      { key: 'apiKey',    label: 'API Key',    placeholder: 'nb_...',      type: 'password' },
+      { key: 'accountId', label: 'Account ID', placeholder: 'your-brand',  type: 'text'     },
     ],
     helpUrl: 'https://help.northbeam.io/',
     helpText: 'Northbeam → Settings → API Access → Generate Key',
@@ -328,23 +423,21 @@ export const INTEGRATIONS = {
     label: 'Hotjar',         category: 'analytics', color: '#FF3C00',
     desc: 'Heatmaps, session recordings & surveys', icon: '🔥',
     fields: [
-      { key: 'siteId',   label: 'Site ID',   placeholder: '1234567',       type: 'text'     },
-      { key: 'apiKey',   label: 'API Key',   placeholder: 'xxxxxxxxxx',    type: 'password' },
+      { key: 'siteId', label: 'Site ID', placeholder: '1234567',    type: 'text'     },
+      { key: 'apiKey', label: 'API Key', placeholder: 'xxxxxxxxxx', type: 'password' },
     ],
     helpUrl: 'https://help.hotjar.com/hc/en-us/articles/115011640428',
     helpText: 'Hotjar → Settings → Tracking Code → Site ID',
     verify: (c) => verifyNonEmpty(c, ['siteId']),
   },
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // SOCIAL MEDIA
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── Social Media ──────────────────────────────────────────────────────────────
   instagram: {
     label: 'Instagram',      category: 'social', color: '#E1306C',
     desc: 'Instagram posts, reels, stories & insights', icon: '📸',
     fields: [
-      { key: 'accessToken', label: 'Long-Lived Access Token', placeholder: 'EAA...', type: 'password' },
-      { key: 'userId',      label: 'Instagram User ID',       placeholder: '17841400000000000', type: 'text' },
+      { key: 'accessToken', label: 'Long-Lived Access Token', placeholder: 'EAA...',               type: 'password' },
+      { key: 'userId',      label: 'Instagram User ID',       placeholder: '17841400000000000',    type: 'text'     },
     ],
     helpUrl: 'https://developers.facebook.com/docs/instagram-basic-display-api',
     helpText: 'Meta for Developers → Instagram Basic Display → Generate Token for your account',
@@ -364,8 +457,8 @@ export const INTEGRATIONS = {
     label: 'YouTube',        category: 'social', color: '#FF0000',
     desc: 'YouTube channel analytics, views & subs', icon: '▶',
     fields: [
-      { key: 'apiKey',   label: 'API Key',    placeholder: 'AIza...',        type: 'password' },
-      { key: 'channelId',label: 'Channel ID', placeholder: 'UCxxxxxxxxxxxxxxxxxxxxxxxx', type: 'text' },
+      { key: 'apiKey',    label: 'API Key',    placeholder: 'AIza...',                     type: 'password' },
+      { key: 'channelId', label: 'Channel ID', placeholder: 'UCxxxxxxxxxxxxxxxxxxxxxxxx',  type: 'text'     },
     ],
     helpUrl: 'https://developers.google.com/youtube/v3/getting-started',
     helpText: 'Google Cloud Console → Credentials → Create API Key → Restrict to YouTube Data API v3',
@@ -379,8 +472,8 @@ export const INTEGRATIONS = {
     label: 'Facebook Pages',  category: 'social', color: '#1877F2',
     desc: 'Facebook Page posts and page insights', icon: '👍',
     fields: [
-      { key: 'pageAccessToken', label: 'Page Access Token', placeholder: 'EAA...', type: 'password' },
-      { key: 'pageId',          label: 'Page ID',           placeholder: '123456789012345', type: 'text' },
+      { key: 'pageAccessToken', label: 'Page Access Token', placeholder: 'EAA...',            type: 'password' },
+      { key: 'pageId',          label: 'Page ID',           placeholder: '123456789012345',   type: 'text'     },
     ],
     helpUrl: 'https://developers.facebook.com/docs/pages',
     helpText: 'Meta for Developers → Graph API Explorer → Generate Page Access Token',
@@ -390,17 +483,15 @@ export const INTEGRATIONS = {
     label: 'LinkedIn',        category: 'social', color: '#0A66C2',
     desc: 'LinkedIn company page analytics', icon: '💼',
     fields: [
-      { key: 'accessToken',  label: 'Access Token',   placeholder: 'AQV...', type: 'password' },
-      { key: 'organizationId',label: 'Organization ID', placeholder: 'urn:li:organization:12345', type: 'text' },
+      { key: 'accessToken',   label: 'Access Token',    placeholder: 'AQV...',                        type: 'password' },
+      { key: 'organizationId',label: 'Organization ID', placeholder: 'urn:li:organization:12345',     type: 'text'     },
     ],
     helpUrl: 'https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow',
     helpText: 'LinkedIn Developer Portal → Your App → Auth → OAuth 2.0 → Request Access Token',
     verify: (c) => verifyNonEmpty(c, ['accessToken']),
   },
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // AI & AUTOMATION
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── AI & Automation ───────────────────────────────────────────────────────────
   anthropic: {
     label: 'Anthropic (Claude)', category: 'ai', color: '#378ADD',
     desc: 'AI content generation in AI Studio', icon: '✦',
@@ -451,17 +542,15 @@ export const INTEGRATIONS = {
     label: 'n8n',             category: 'ai', color: '#EA4B71',
     desc: 'Self-hosted workflow automation', icon: '🔄',
     fields: [
-      { key: 'webhookUrl', label: 'Webhook URL', placeholder: 'https://your-n8n.com/webhook/...', type: 'text' },
-      { key: 'apiKey',     label: 'API Key (optional)', placeholder: 'xxxxxxxxxx', type: 'password' },
+      { key: 'webhookUrl', label: 'Webhook URL',          placeholder: 'https://your-n8n.com/webhook/...', type: 'text'     },
+      { key: 'apiKey',     label: 'API Key (optional)',   placeholder: 'xxxxxxxxxx',                       type: 'password' },
     ],
     helpUrl: 'https://docs.n8n.io/integrations/core-nodes/n8n-nodes-base.webhook/',
     helpText: 'n8n → Workflows → Add Webhook node → Copy production URL',
     verify: (c) => verifyUrl(c, ['webhookUrl']),
   },
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // WORKSPACE & CALENDAR
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── Workspace & Calendar ──────────────────────────────────────────────────────
   notion: {
     label: 'Notion',          category: 'workspace', color: '#1A1A1A',
     desc: 'Sync content calendar & scripts from Notion', icon: '◻',
@@ -537,15 +626,17 @@ export const INTEGRATIONS = {
       return { ok: true }
     },
   },
+
+  // ── Cloud Sync ────────────────────────────────────────────────────────────────
   supabase: {
     label: 'Supabase',
     category: 'sync',
     color: '#3ECF8E',
     fields: [
-      { key: 'projectUrl', label: 'Project URL',      placeholder: 'https://xxxxxxxxxxxx.supabase.co', type: 'text'     },
-      { key: 'anonKey',    label: 'Anon Public Key',  placeholder: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', type: 'password' },
+      { key: 'projectUrl', label: 'Project URL',     placeholder: 'https://xxxxxxxxxxxx.supabase.co',         type: 'text'     },
+      { key: 'anonKey',    label: 'Anon Public Key', placeholder: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', type: 'password' },
     ],
-    helpText: 'Found in your Supabase project → Settings → API. Enables cross-device sync for all your dashboard data.',
+    helpText: 'Found in your Supabase project → Settings → API. The anon key is a public value — enabling Supabase stores all your data and credentials securely in the cloud.',
     helpUrl: 'https://supabase.com/dashboard',
     verify: (c) => {
       if (!c.projectUrl?.trim()) return { ok: false, error: 'Project URL is required.' }
@@ -556,44 +647,22 @@ export const INTEGRATIONS = {
   },
 }
 
+
 // ── Category metadata ─────────────────────────────────────────────────────────
+
 export const INTEGRATION_CATEGORIES = {
-  sync:       { label: '☁️ Cloud Sync',          icon: '☁️'  },
+  sync:      { label: 'Cloud Sync',          icon: '☁️'  },
   ecommerce: { label: 'E-Commerce',           icon: '🛍'  },
-  marketing:  { label: 'Marketing & Email',    icon: '📣'  },
-  analytics:  { label: 'Analytics',            icon: '📊'  },
-  social:     { label: 'Social Media',         icon: '📱'  },
-  ai:         { label: 'AI & Automation',      icon: '✦'   },
-  workspace:  { label: 'Workspace & Calendar', icon: '🗂'  },
+  marketing: { label: 'Marketing & Email',    icon: '📣'  },
+  analytics: { label: 'Analytics',            icon: '📊'  },
+  social:    { label: 'Social Media',         icon: '📱'  },
+  ai:        { label: 'AI & Automation',      icon: '✦'   },
+  workspace: { label: 'Workspace & Calendar', icon: '🗂'  },
 }
 
-// ── Storage helpers ───────────────────────────────────────────────────────────
-export function getCredentials(service) {
-  try {
-    const raw = localStorage.getItem(PREFIX + service)
-    return raw ? JSON.parse(raw) : null
-  } catch { return null }
-}
-
-export function saveCredentials(service, data) {
-  localStorage.setItem(PREFIX + service, JSON.stringify(data))
-}
-
-export function clearCredentials(service) {
-  localStorage.removeItem(PREFIX + service)
-}
-
-export function isConnected(service) {
-  const creds = getCredentials(service)
-  if (!creds) return false
-  return Object.values(creds).some(v => v && String(v).trim() !== '')
-}
-
-export function getConnectedCount() {
-  return Object.keys(INTEGRATIONS).filter(isConnected).length
-}
 
 // ── Verify a connection ───────────────────────────────────────────────────────
+
 export async function verifyConnection(serviceKey, creds) {
   const integration = INTEGRATIONS[serviceKey]
   if (!integration?.verify) return { ok: true }
