@@ -3,13 +3,17 @@ import { Link } from 'react-router-dom'
 import StatCard from '../components/ui/StatCard.jsx'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { getTeam } from '../lib/team.js'
+import { useAuth } from '../lib/auth.jsx'
 
 // ─── Data readers ─────────────────────────────────────────────────────────────
 function loadScripts()  { try { return JSON.parse(localStorage.getItem('maxd_scripts')  || '[]') } catch { return [] } }
 function loadContent()  { try { return JSON.parse(localStorage.getItem('maxd_content')  || '[]') } catch { return [] } }
 function loadLaunches() { try { return JSON.parse(localStorage.getItem('maxd_launches') || '[]') } catch { return [] } }
 function loadAds()      { try { return JSON.parse(localStorage.getItem('maxd_ads')      || '[]') } catch { return [] } }
-function loadQueue()    { try { const r = localStorage.getItem('maxd_queue'); return r ? JSON.parse(r) : { items: [] } } catch { return { items: [] } } }
+function loadQueue(email) {
+  const key = `queue:${email || 'shared'}`
+  try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : { items: [] } } catch { return { items: [] } }
+}
 
 // ─── Business data readers ─────────────────────────────────────────────────────
 function loadSocial()  { try { return JSON.parse(localStorage.getItem('maxd_social') || 'null') } catch { return null } }
@@ -498,6 +502,7 @@ function GettingStarted() {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
+  const { user } = useAuth()
   const [data, setData] = useState({ scripts: [], content: [], launches: [], ads: [], team: [], queue: { items: [] } })
   const [biz, setBiz] = useState(() => deriveBizStats())
 
@@ -508,10 +513,10 @@ export default function Dashboard() {
       launches: loadLaunches(),
       ads:      loadAds(),
       team:     getTeam(),
-      queue:    loadQueue(),
+      queue:    loadQueue(user?.email),
     })
     setBiz(deriveBizStats())
-  }, [])
+  }, [user?.email])
 
   const { scripts, content, launches, ads, team, queue } = data
   const td = todayStr()

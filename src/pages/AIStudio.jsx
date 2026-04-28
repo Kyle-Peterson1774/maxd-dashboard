@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { getCredentials } from '../lib/credentials.js'
+import { useAuth } from '../lib/auth.jsx'
 
-const COPIES_KEY = 'maxd_ai_copies'
-const RECENT_KEY = 'maxd_ai_recent_templates'
+// User-scoped keys — each team member has their own saved copies and recent list
+function copiesKey(email) { return `ai_copies:${email || 'shared'}` }
+function recentKey(email)  { return `ai_recent:${email || 'shared'}` }
 
 // ── Templates ─────────────────────────────────────────────────────────────────
 const TEMPLATES = [
@@ -51,10 +53,10 @@ const CATEGORIES = ['All', 'Social', 'Email', 'Ads', 'Product', 'Brand', 'Sales'
 const TONES = ['Energetic', 'Scientific', 'Casual', 'Premium', 'Motivational', 'Educational', 'Direct & Professional']
 const CAT_ICONS = { Social: '📱', Email: '✉️', Ads: '💰', Product: '📦', Brand: '🏷️', Sales: '🤝', All: '⚡' }
 
-function loadCopies() { try { return JSON.parse(localStorage.getItem(COPIES_KEY) || '[]') } catch { return [] } }
-function saveCopies(d) { localStorage.setItem(COPIES_KEY, JSON.stringify(d)) }
-function loadRecent() { try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') } catch { return [] } }
-function saveRecent(d) { localStorage.setItem(RECENT_KEY, JSON.stringify(d)) }
+function loadCopies(email) { try { return JSON.parse(localStorage.getItem(copiesKey(email)) || '[]') } catch { return [] } }
+function saveCopies(email, d) { localStorage.setItem(copiesKey(email), JSON.stringify(d)) }
+function loadRecent(email)  { try { return JSON.parse(localStorage.getItem(recentKey(email))  || '[]') } catch { return [] } }
+function saveRecent(email, d)  { localStorage.setItem(recentKey(email),  JSON.stringify(d)) }
 function getApiKey() { return getCredentials('anthropic')?.apiKey?.trim() || '' }
 function nid() { return `c_${Date.now()}_${Math.random().toString(36).slice(2,5)}` }
 
@@ -437,6 +439,9 @@ function AgentsTab({ apiKey }) {
 }
 
 export default function AIStudio() {
+  const { user } = useAuth()
+  const email = user?.email || ''
+
   const [tab, setTab] = useState('generate')
   const [catFilter, setCatFilter] = useState('All')
   const [selectedTmpl, setSelectedTmpl] = useState(null)
@@ -447,8 +452,8 @@ export default function AIStudio() {
   const [output, setOutput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [copies, setCopies] = useState(loadCopies)
-  const [recent, setRecent] = useState(loadRecent)
+  const [copies, setCopies] = useState(() => loadCopies(email))
+  const [recent, setRecent] = useState(() => loadRecent(email))
   const [copied, setCopied] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
 
@@ -464,7 +469,7 @@ export default function AIStudio() {
     setError('')
     const next = [tmpl.id, ...recent.filter(id => id !== tmpl.id)].slice(0, 8)
     setRecent(next)
-    saveRecent(next)
+    saveRecent(email, next)
   }
 
   const buildPrompt = () => {
@@ -503,11 +508,11 @@ export default function AIStudio() {
   const saveCopy = () => {
     const entry = { id: nid(), date: new Date().toISOString().split('T')[0], templateId: selectedTmpl.id, templateName: selectedTmpl.name, cat: selectedTmpl.cat, icon: selectedTmpl.icon, productName, text: output }
     const next = [entry, ...copies]
-    setCopies(next); saveCopies(next)
+    setCopies(next); saveCopies(email, next)
     setSavedFlash(true); setTimeout(() => setSavedFlash(false), 2000)
   }
 
-  const deleteCopy = (id) => { const next = copies.filter(c => c.id !== id); setCopies(next); saveCopies(next) }
+  const deleteCopy = (id) => { const next = copies.filter(c => c.id !== id); setCopies(next); saveCopies(email, next) }
 
   const tabStyle = (t) => ({
     padding: '0.45rem 1rem', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 500,
@@ -631,7 +636,7 @@ export default function AIStudio() {
           ) : (
             <>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
-                <button onClick={() => { setCopies([]); saveCopies([]) }} style={{ ...btnGhost, color: 'var(--red)', borderColor: 'var(--red)', fontSize: 12 }}>Clear All</button>
+                <button onClick={() => { setCopies([]); saveCopies(email, []) }} style={{ ...btnGhost, color: 'var(--red)', borderColor: 'var(--red)', fontSize: 12 }}>Clear All</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {copies.map(c => (
