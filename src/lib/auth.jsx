@@ -1,8 +1,10 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import {
   supabaseSignIn,
   supabaseSignUp,
   supabaseSignOut,
+  supabaseRequestPasswordReset,
+  supabaseUpdatePassword,
   isSupabaseConfigured,
   createOrg,
   getOrgMembership,
@@ -77,18 +79,51 @@ function isApproved(email) {
 
 // ── Login Page ────────────────────────────────────────────────────────────────
 
+function parseRecoveryToken() {
+  try {
+    const hash = window.location.hash
+    if (!hash.includes('type=recovery') || !hash.includes('access_token=')) return null
+    return new URLSearchParams(hash.substring(1)).get('access_token')
+  } catch { return null }
+}
+
 function LoginPage({ onLogin }) {
-  const [mode, setMode]       = useState('login')   // 'login' | 'signup'
-  const [email, setEmail]     = useState('')
-  const [password, setPass]   = useState('')
-  const [name, setName]       = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
+  const recoveryToken               = parseRecoveryToken()
+  const [mode, setMode]             = useState(recoveryToken ? 'recover' : 'login')
+  const [email, setEmail]           = useState('')
+  const [password, setPass]         = useState('')
+  const [newPassword, setNewPass]   = useState('')
+  const [confirmPass, setConfirm]   = useState('')
+  const [name, setName]             = useState('')
+  const [loading, setLoading]       = useState(false)
+  const [error, setError]           = useState('')
+  const [successMsg, setSuccess]    = useState('')
   const hasSupabase = isSupabaseConfigured()
+
+  const handleForgot = async () => {
+    if (!email) { setError('Enter your email address'); return }
+    setLoading(true); setError(''); setSuccess('')
+    const result = await supabaseRequestPasswordReset(email)
+    setLoading(false)
+    if (result.error) { setError(result.error); return }
+    setSuccess('Check your email — a password reset link is on its way.')
+  }
+
+  const handleRecover = async () => {
+    if (!newPassword) { setError('Enter a new password'); return }
+    if (newPassword !== confirmPass) { setError('Passwords do not match'); return }
+    if (newPassword.length < 8) { setError('Password must be at least 8 characters'); return }
+    setLoading(true); setError('')
+    const result = await supabaseUpdatePassword(recoveryToken, newPassword)
+    setLoading(false)
+    if (result.error) { setError(result.error); return }
+    setSuccess('Password updated! You can now sign in.')
+    setMode('login')
+  }
 
   const handle = async () => {
     if (!email || !password) { setError('Email and password required'); return }
-    setLoading(true); setError('')
+    setLoading(true); setError(''); setSuccess('')
 
     // ── Fallback: no Supabase configured ──
     if (!hasSupabase) {
@@ -195,23 +230,74 @@ function LoginPage({ onLogin }) {
     boxSizing: 'border-box', outline: 'none',
   }
 
+  const logoBlock = (
+    <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <svg width="32" height="24" viewBox="0 0 24 18" fill="none">
+          <path d="M0 18 L8 2 L12 9 L14 6 L24 18Z" fill="#E21B4D"/>
+          <path d="M12 9 L14 6 L24 18 L12 18Z" fill="rgba(226,27,77,0.45)"/>
+        </svg>
+        <span style={{ fontFamily: 'Oswald, sans-serif', color: '#fff', fontSize: 22, fontWeight: 700, letterSpacing: '0.15em' }}>MAXD</span>
+      </div>
+      <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Operations Dashboard</div>
+    </div>
+  )
+
+  const card = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1.75rem' }
+  const btn  = { marginTop: '1.25rem', width: '100%', padding: '0.7rem', background: '#E21B4D', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', letterSpacing: '0.02em', fontFamily: 'Oswald, sans-serif', opacity: loading ? 0.7 : 1 }
+  const link = { background: 'none', border: 'none', color: '#E21B4D', cursor: 'pointer', fontSize: 13, padding: 0 }
+
+  // ── Recover mode (arrived via email reset link) ──────────────────────────────
+  if (mode === 'recover') return (
+    <div style={{ minHeight: '100vh', background: '#0f0f1a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ width: '100%', maxWidth: 380 }}>
+        {logoBlock}
+        <div style={card}>
+          <h2 style={{ margin: '0 0 1.5rem', color: '#fff', fontSize: 18, fontWeight: 600 }}>Set a new password</h2>
+          <div style={{ display: 'grid', gap: '0.875rem' }}>
+            <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>New Password
+              <input type="password" value={newPassword} onChange={e => setNewPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleRecover()} placeholder="Min 8 characters" style={inp} />
+            </label>
+            <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>Confirm Password
+              <input type="password" value={confirmPass} onChange={e => setConfirm(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleRecover()} placeholder="••••••••" style={inp} />
+            </label>
+          </div>
+          {error && <div style={{ marginTop: '1rem', padding: '0.6rem 0.75rem', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, fontSize: 13, color: '#f87171' }}>{error}</div>}
+          {successMsg && <div style={{ marginTop: '1rem', padding: '0.6rem 0.75rem', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, fontSize: 13, color: '#86efac' }}>{successMsg}</div>}
+          <button onClick={handleRecover} disabled={loading} style={btn}>{loading ? 'Updating…' : 'Set New Password'}</button>
+        </div>
+      </div>
+    </div>
+  )
+
+  // ── Forgot password mode ─────────────────────────────────────────────────────
+  if (mode === 'forgot') return (
+    <div style={{ minHeight: '100vh', background: '#0f0f1a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ width: '100%', maxWidth: 380 }}>
+        {logoBlock}
+        <div style={card}>
+          <h2 style={{ margin: '0 0 0.5rem', color: '#fff', fontSize: 18, fontWeight: 600 }}>Reset your password</h2>
+          <p style={{ margin: '0 0 1.25rem', fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>Enter your email and we'll send a reset link.</p>
+          <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>Email
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleForgot()} placeholder="you@company.com" style={inp} />
+          </label>
+          {error && <div style={{ marginTop: '1rem', padding: '0.6rem 0.75rem', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, fontSize: 13, color: '#f87171' }}>{error}</div>}
+          {successMsg && <div style={{ marginTop: '1rem', padding: '0.6rem 0.75rem', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, fontSize: 13, color: '#86efac' }}>{successMsg}</div>}
+          <button onClick={handleForgot} disabled={loading} style={btn}>{loading ? 'Sending…' : 'Send Reset Link'}</button>
+          <div style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>
+            <button onClick={() => { setMode('login'); setError(''); setSuccess('') }} style={link}>Back to sign in</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  // ── Login / Signup mode ──────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: '#0f0f1a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ width: '100%', maxWidth: 380 }}>
-
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <svg width="32" height="24" viewBox="0 0 24 18" fill="none">
-              <path d="M0 18 L8 2 L12 9 L14 6 L24 18Z" fill="#E21B4D"/>
-              <path d="M12 9 L14 6 L24 18 L12 18Z" fill="rgba(226,27,77,0.45)"/>
-            </svg>
-            <span style={{ fontFamily: 'Oswald, sans-serif', color: '#fff', fontSize: 22, fontWeight: 700, letterSpacing: '0.15em' }}>MAXD</span>
-          </div>
-          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Operations Dashboard</div>
-        </div>
-
-        <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1.75rem' }}>
+        {logoBlock}
+        <div style={card}>
           <h2 style={{ margin: '0 0 1.5rem', color: '#fff', fontSize: 18, fontWeight: 600 }}>
             {mode === 'login' ? 'Sign in' : 'Create your account'}
           </h2>
@@ -229,6 +315,14 @@ function LoginPage({ onLogin }) {
               <input type="password" value={password} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} placeholder="••••••••" style={inp} />
             </label>
           </div>
+
+          {mode === 'login' && (
+            <div style={{ marginTop: '0.5rem', textAlign: 'right' }}>
+              <button onClick={() => { setMode('forgot'); setError(''); setSuccess('') }} style={{ ...link, fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>
+                Forgot password?
+              </button>
+            </div>
+          )}
 
           {mode === 'signup' && (
             <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.75rem', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 8, fontSize: 12, color: 'rgba(147,197,253,0.9)', lineHeight: 1.5 }}>
@@ -248,13 +342,19 @@ function LoginPage({ onLogin }) {
             </div>
           )}
 
-          <button onClick={handle} disabled={loading} style={{ marginTop: '1.25rem', width: '100%', padding: '0.7rem', background: '#E21B4D', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', letterSpacing: '0.02em', fontFamily: 'Oswald, sans-serif', opacity: loading ? 0.7 : 1 }}>
+          {successMsg && (
+            <div style={{ marginTop: '1rem', padding: '0.6rem 0.75rem', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, fontSize: 13, color: '#86efac' }}>
+              {successMsg}
+            </div>
+          )}
+
+          <button onClick={handle} disabled={loading} style={btn}>
             {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
           </button>
 
           <div style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>
             {mode === 'login' ? "Need an account? " : "Already have one? "}
-            <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }} style={{ background: 'none', border: 'none', color: '#E21B4D', cursor: 'pointer', fontSize: 13, padding: 0 }}>
+            <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccess('') }} style={link}>
               {mode === 'login' ? 'Sign up' : 'Sign in'}
             </button>
           </div>

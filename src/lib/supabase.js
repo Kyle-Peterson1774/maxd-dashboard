@@ -70,6 +70,39 @@ export async function supabaseSignUp(email, password, name) {
   } catch { return { error: 'Network error — check your connection.' } }
 }
 
+export async function supabaseRequestPasswordReset(email) {
+  const cfg = getConfig()
+  if (!cfg) return { error: 'Supabase not configured' }
+  try {
+    const redirectTo = window.location.origin + window.location.pathname
+    const res = await fetch(`${cfg.url}/auth/v1/recover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': cfg.key },
+      body: JSON.stringify({ email, redirect_to: redirectTo }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      return { error: data.error_description || data.msg || 'Failed to send reset email.' }
+    }
+    return { data: true }
+  } catch { return { error: 'Network error — check your connection.' } }
+}
+
+export async function supabaseUpdatePassword(accessToken, newPassword) {
+  const cfg = getConfig()
+  if (!cfg) return { error: 'Supabase not configured' }
+  try {
+    const res = await fetch(`${cfg.url}/auth/v1/user`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'apikey': cfg.key, 'Authorization': `Bearer ${accessToken}` },
+      body: JSON.stringify({ password: newPassword }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: data.error_description || data.msg || 'Failed to update password.' }
+    return { data }
+  } catch { return { error: 'Network error — check your connection.' } }
+}
+
 export async function supabaseSignOut(accessToken) {
   const cfg = getConfig()
   if (!cfg || !accessToken) return
