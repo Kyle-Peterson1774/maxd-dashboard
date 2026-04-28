@@ -2,8 +2,10 @@ import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { dbSet, dbGet } from '../lib/db.js'
 import { getCredentials, isConnected } from '../lib/credentials.js'
+import { useAuth } from '../lib/auth.jsx'
 
-const STORE_KEY = 'maxd_queue'
+// User-scoped key — each team member has their own queue
+function queueKey(email) { return `queue:${email || 'shared'}` }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const ACTION_TYPES = {
@@ -26,16 +28,25 @@ const STATUS = {
 
 const EMPTY = { items: [] }
 
-function load() {
-  try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : EMPTY } catch { return EMPTY }
+// Module-level email — set by the Queue component on mount so pushToQueue
+// (called externally by agents) always writes to the right user's queue.
+let _currentUserEmail = ''
+export function setQueueUser(email) { _currentUserEmail = email }
+
+function load(key) {
+  try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : EMPTY } catch { return EMPTY }
 }
-function save(d) { dbSet(STORE_KEY, d) }
+function save(key, d) {
+  localStorage.setItem(key, JSON.stringify(d))
+  dbSet(key, d)
+}
 function nid() { return `q_${Date.now()}_${Math.random().toString(36).slice(2,5)}` }
 
-// ── Export so agents can push items to the queue ────────────────────────────
+// ── Export so agents can push items to the current user's queue ──────────────
 export function pushToQueue(item) {
   try {
-    const raw = localStorage.getItem(STORE_KEY)
+    const key = queueKey(_currentUserEmail)
+    const raw = localStorage.getItem(key)
     const data = raw ? JSON.parse(raw) : EMPTY
     const newItem = {
       id: nid(),
@@ -44,8 +55,8 @@ export function pushToQueue(item) {
       ...item,
     }
     const next = { ...data, items: [newItem, ...data.items] }
-    localStorage.setItem(STORE_KEY, JSON.stringify(next))
-    dbSet(STORE_KEY, next)
+    localStorage.setItem(key, JSON.stringify(next))
+    dbSet(key, next)
     return newItem.id
   } catch { return null }
 }
@@ -353,13 +364,19 @@ function ConnectionBar() {
 
 // ── Main Queue Component ──────────────────────────────────────────────────────
 export default function Queue() {
-  const [data, setData] = useState(load)
+  const { user } = useAuth()
+  const STORE_KEY = queueKey(user?.email)
+
+  const [data, setData] = useState(() => load(STORE_KEY))
   const [selectedItem, setSelectedItem] = useState(null)
   const [addModal, setAddModal] = useState(false)
   const [filter, setFilter] = useState('all')
   const [platformFilter, setPlatformFilter] = useState('all')
 
   useEffect(() => {
+    // Register this user with the module so pushToQueue works from agents
+    setQueueUser(user?.email || '')
+    // Pull from cloud
     dbGet(STORE_KEY).then(d => { if (d) setData(d) })
     // Poll for new items pushed by agents every 10 seconds
     const poll = setInterval(() => {
@@ -369,9 +386,9 @@ export default function Queue() {
       } catch {}
     }, 10000)
     return () => clearInterval(poll)
-  }, [])
+  }, [STORE_KEY])
 
-  const persist = (next) => { setData(next); save(next) }
+  const persist = (next) => { setData(next); save(STORE_KEY, next) }
 
   const addItem = (item) => {
     const newItem = { id: nid(), createdAt: new Date().toISOString(), status: 'pending', ...item }

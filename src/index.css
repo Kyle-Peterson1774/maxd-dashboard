@@ -18,6 +18,7 @@
 
   /* Neutral surface palette */
   --surface:     #F2F4F8;       /* main bg */
+  --surface-1:   #FFFFFF;       /* alias for surface-2 — used in modals */
   --surface-2:   #FFFFFF;       /* card bg */
   --surface-3:   #EDF0F7;       /* subtle tint */
   --border:      rgba(20, 31, 54, 0.08);
