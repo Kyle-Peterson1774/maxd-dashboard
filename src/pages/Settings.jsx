@@ -1,7 +1,9 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { getTeam, saveTeam, initials, memberColor } from '../lib/team.js'
-import { getApprovedUsers, saveApprovedUsers, ROLE_LABELS } from '../lib/auth.jsx'
+import { ROLE_LABELS, PERMISSIONS, useAuth } from '../lib/auth.jsx'
+import { getOrgMembers, upsertOrgMember, deleteOrgMember } from '../lib/supabase.js'
+import { dbGet, dbSet } from '../lib/db.js'
 import {
   INTEGRATIONS,
   INTEGRATION_CATEGORIES,
@@ -566,115 +568,455 @@ function MemberModal({ member, onClose, onSave, onDelete }) {
 }
 
 // ── Section: Access Control ───────────────────────────────────────────────────
-const ROLE_COLORS = { admin: '#E21B4D', content: '#3b82f6', marketing: '#8b5cf6', ops: '#22c55e' }
 
+// All pages with display labels and grouping
+const ALL_PAGES = [
+  { key: 'dashboard',  label: 'Dashboard',    group: 'Core' },
+  { key: 'sales',      label: 'Sales',         group: 'Business' },
+  { key: 'finance',    label: 'Finance',        group: 'Business' },
+  { key: 'operations', label: 'Operations',     group: 'Business' },
+  { key: 'marketing',  label: 'Marketing',      group: 'Marketing' },
+  { key: 'ads',        label: 'Ads',            group: 'Marketing' },
+  { key: 'analytics',  label: 'Analytics',      group: 'Marketing' },
+  { key: 'social',     label: 'Social',         group: 'Content' },
+  { key: 'content',    label: 'Content',        group: 'Content' },
+  { key: 'scripts',    label: 'Scripts',        group: 'Content' },
+  { key: 'launches',   label: 'Launches',       group: 'Content' },
+  { key: 'products',   label: 'Products',       group: 'Content' },
+  { key: 'ai',         label: 'AI Studio',      group: 'Tools' },
+  { key: 'queue',      label: 'Action Queue',   group: 'Tools' },
+  { key: 'settings',   label: 'Settings',       group: 'Admin' },
+]
+const PAGE_GROUPS = ['Core', 'Business', 'Marketing', 'Content', 'Tools', 'Admin']
+
+// ── Role template defaults (overridden by whatever admin saves to DB) ─────────
+const ROLES_KEY = 'maxd_role_templates'
+const DEFAULT_ROLE_TEMPLATES = [
+  { id: 'sales',     name: 'Sales',           color: '#22c55e', pages: ['dashboard','sales','analytics','marketing'] },
+  { id: 'marketing', name: 'Marketing',        color: '#8b5cf6', pages: ['dashboard','social','marketing','ads','analytics'] },
+  { id: 'content',   name: 'Content Creator',  color: '#3b82f6', pages: ['dashboard','social','scripts','content','ai','queue'] },
+  { id: 'ops',       name: 'Operations',       color: '#f59e0b', pages: ['dashboard','operations','launches','products'] },
+  { id: 'finance',   name: 'Finance',          color: '#06b6d4', pages: ['dashboard','finance','analytics','sales'] },
+]
+
+const AVATAR_COLORS = ['#E21B4D','#3b82f6','#8b5cf6','#22c55e','#f59e0b','#06b6d4','#ec4899']
+function avatarColor(str = '') {
+  const i = Math.abs([...str].reduce((a, c) => a + c.charCodeAt(0), 0)) % AVATAR_COLORS.length
+  return AVATAR_COLORS[i]
+}
+
+// ── Role modal (create / edit a role template) ────────────────────────────────
+function RoleModal({ role, onClose, onSave }) {
+  const isNew = !role
+  const [name, setName]   = useState(role?.name || '')
+  const [color, setColor] = useState(role?.color || AVATAR_COLORS[0])
+  const [pages, setPages] = useState(role?.pages || [])
+
+  const toggle = (key) => setPages(p => p.includes(key) ? p.filter(k => k !== key) : [...p, key])
+  const inp = { display: 'block', width: '100%', padding: '0.45rem 0.65rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box', marginTop: 4 }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 14, width: '100%', maxWidth: 500, boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{isNew ? 'Create Role' : `Edit Role — ${role.name}`}</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+        </div>
+        <div style={{ padding: '1.25rem 1.5rem', maxHeight: '65vh', overflowY: 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', alignItems: 'flex-end', marginBottom: '1.25rem' }}>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
+              Role Name
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sales Manager, Content Creator" style={inp} />
+            </label>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
+              Color
+              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                {AVATAR_COLORS.map(c => (
+                  <button key={c} onClick={() => setColor(c)} style={{ width: 24, height: 24, borderRadius: '50%', background: c, border: color === c ? '3px solid var(--text-primary)' : '2px solid transparent', cursor: 'pointer', padding: 0 }} />
+                ))}
+              </div>
+            </label>
+          </div>
+
+          <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>
+            Default Dashboard Access
+            <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 400, color: 'var(--text-muted)' }}>— pages auto-assigned when someone is given this role</span>
+          </div>
+          {PAGE_GROUPS.map(group => (
+            <div key={group} style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>{group}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {ALL_PAGES.filter(p => p.group === group).map(p => {
+                  const active = pages.includes(p.key)
+                  return (
+                    <button key={p.key} onClick={() => toggle(p.key)} style={{ padding: '4px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer', border: `1px solid ${active ? color : 'var(--border)'}`, background: active ? color : 'var(--surface-2)', color: active ? '#fff' : 'var(--text-muted)', fontWeight: active ? 600 : 400, transition: 'all 0.1s' }}>
+                      {p.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button onClick={onClose} style={{ padding: '0.45rem 1rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={() => name.trim() && onSave({ id: role?.id || Date.now().toString(), name: name.trim(), color, pages })} style={{ padding: '0.45rem 1.25rem', background: 'var(--navy)', border: 'none', borderRadius: 6, fontSize: 13, color: '#fff', cursor: 'pointer', fontWeight: 600, opacity: name.trim() ? 1 : 0.5 }}>
+            {isNew ? 'Create Role' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Member modal (invite / edit a team member) ────────────────────────────────
+function MemberAccessModal({ member, onClose, onSave, currentUser, roleTemplates, isAdmin }) {
+  const isNew    = !member?.email
+  const isYou    = member?.email === currentUser.email
+  // Managers can only grant pages within their own access
+  const allowedPages = isAdmin ? ALL_PAGES.map(p => p.key) : (currentUser.pages || [])
+
+  const [email, setEmail]       = useState(member?.email || '')
+  const [name, setName]         = useState(member?.name || '')
+  const [role, setRole]         = useState(member?.role || (roleTemplates[0]?.name || 'member'))
+  const [pages, setPages]       = useState(member?.pages || roleTemplates[0]?.pages || [])
+  const [canManage, setCanMgr]  = useState(member?.can_manage || false)
+  const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState('')
+
+  const handleRoleChange = (roleName) => {
+    setRole(roleName)
+    const tmpl = roleTemplates.find(r => r.name === roleName)
+    if (tmpl) {
+      // Apply template pages, but filter to only allowed pages if manager
+      setPages(tmpl.pages.filter(p => allowedPages.includes(p)))
+    }
+  }
+
+  const toggle = (key) => {
+    if (!allowedPages.includes(key)) return  // managers can't grant what they don't have
+    setPages(p => p.includes(key) ? p.filter(k => k !== key) : [...p, key])
+  }
+
+  const handleSave = async () => {
+    if (!email.includes('@')) { setError('Enter a valid email address'); return }
+    setSaving(true)
+    await onSave({ email: email.trim().toLowerCase(), name: name.trim(), role, pages, can_manage: canManage, status: isNew ? 'invited' : (member?.status || 'active') })
+    setSaving(false)
+  }
+
+  const inp = { display: 'block', width: '100%', padding: '0.45rem 0.65rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box', marginTop: 4 }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 14, width: '100%', maxWidth: 540, boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {isNew ? 'Invite Team Member' : `Edit — ${member.name || member.email}`}
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1 }}>×</button>
+        </div>
+
+        <div style={{ padding: '1.25rem 1.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
+          {/* Email + Name */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Email
+              {isNew
+                ? <input value={email} onChange={e => { setEmail(e.target.value); setError('') }} placeholder="teammate@company.com" autoComplete="off" style={inp} />
+                : <div style={{ ...inp, background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }}>{email}</div>
+              }
+            </label>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Name
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="First Last" autoComplete="off" disabled={isYou} style={{ ...inp, opacity: isYou ? 0.5 : 1 }} />
+            </label>
+          </div>
+
+          {/* Role selector */}
+          <label style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '1rem' }}>
+            Role
+            <select value={role} onChange={e => handleRoleChange(e.target.value)} disabled={isYou} style={{ ...inp, opacity: isYou ? 0.5 : 1 }}>
+              {roleTemplates.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+              {isAdmin && <option value="admin">Admin — full access</option>}
+            </select>
+            <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>Choosing a role auto-fills default dashboards. You can customize below.</div>
+          </label>
+
+          {/* Manager toggle — admin only */}
+          {isAdmin && !isYou && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.85rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: '1rem' }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Manager Access</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Can invite teammates and grant them access — but only within their own pages</div>
+              </div>
+              <button onClick={() => setCanMgr(m => !m)} style={{ width: 40, height: 22, borderRadius: 11, background: canManage ? 'var(--navy)' : 'var(--surface-3)', border: '1px solid var(--border)', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+                <div style={{ position: 'absolute', top: 2, left: canManage ? 19 : 2, width: 16, height: 16, borderRadius: '50%', background: canManage ? '#fff' : 'var(--text-muted)', transition: 'left 0.15s' }} />
+              </button>
+            </div>
+          )}
+
+          {/* Page access picker */}
+          <div style={{ marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>Dashboard Access</span>
+              {!isYou && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setPages(allowedPages)} style={{ fontSize: 11, padding: '2px 8px', background: 'none', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer' }}>All</button>
+                  <button onClick={() => setPages([])} style={{ fontSize: 11, padding: '2px 8px', background: 'none', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer' }}>None</button>
+                </div>
+              )}
+            </div>
+            {!isAdmin && (
+              <div style={{ marginBottom: 8, padding: '0.4rem 0.65rem', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: 6, fontSize: 11, color: 'rgba(253,224,71,0.85)' }}>
+                You can only grant dashboards within your own access.
+              </div>
+            )}
+            {PAGE_GROUPS.map(group => {
+              const groupPages = ALL_PAGES.filter(p => p.group === group)
+              return (
+                <div key={group} style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>{group}</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {groupPages.map(p => {
+                      const allowed  = isYou || allowedPages.includes(p.key)
+                      const active   = isYou || pages.includes(p.key)
+                      return (
+                        <button key={p.key} onClick={() => !isYou && toggle(p.key)} style={{ padding: '4px 10px', borderRadius: 20, fontSize: 12, cursor: isYou || !allowed ? 'default' : 'pointer', border: `1px solid ${active ? 'var(--navy)' : 'var(--border)'}`, background: active ? 'var(--navy)' : 'var(--surface-2)', color: active ? '#fff' : allowed ? 'var(--text-muted)' : 'var(--border)', fontWeight: active ? 600 : 400, opacity: allowed ? 1 : 0.35, transition: 'all 0.1s' }}>
+                          {p.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {error && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--red)' }}>{error}</div>}
+          {isNew && (
+            <div style={{ marginTop: 8, padding: '0.5rem 0.75rem', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 6, fontSize: 11, color: 'rgba(147,197,253,0.9)', lineHeight: 1.5 }}>
+              Share the dashboard URL. They sign up with this exact email and access activates automatically.
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button onClick={onClose} style={{ padding: '0.45rem 1rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>Cancel</button>
+          {!isYou && (
+            <button onClick={handleSave} disabled={saving} style={{ padding: '0.45rem 1.25rem', background: 'var(--navy)', border: 'none', borderRadius: 6, fontSize: 13, color: '#fff', cursor: saving ? 'wait' : 'pointer', fontWeight: 600, opacity: saving ? 0.7 : 1 }}>
+              {saving ? 'Saving…' : isNew ? 'Send Invite' : 'Save Changes'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main AccessControl section ────────────────────────────────────────────────
 function AccessControl() {
-  const [approved, setApproved] = useState(getApprovedUsers)
-  const [newEmail, setNewEmail] = useState('')
-  const [newName, setNewName] = useState('')
-  const [newRole, setNewRole] = useState('content')
-  const [adding, setAdding] = useState(false)
-  const [error, setError] = useState('')
+  const { user, isAdmin, canManage } = useAuth()
+  const [tab, setTab]                 = useState('team')       // 'roles' | 'team'
+  const [roleTemplates, setTemplates] = useState(DEFAULT_ROLE_TEMPLATES)
+  const [members, setMembers]         = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [editMember, setEditMember]   = useState(null)
+  const [editRole, setEditRole]       = useState(null)         // null=closed, false=new, obj=editing
+  const [error, setError]             = useState('')
 
-  const persist = (list) => { setApproved(list); saveApprovedUsers(list) }
+  const hasOrg = !!user?.orgId
 
-  const add = () => {
-    const email = newEmail.trim().toLowerCase()
-    if (!email || !email.includes('@')) { setError('Enter a valid email address'); return }
-    if (approved.some(u => u.email.toLowerCase() === email)) { setError('That email is already on the list'); return }
-    persist([...approved, { email, name: newName.trim() || '', role: newRole }])
-    setNewEmail(''); setNewName(''); setError('')
-    setAdding(false)
+  useEffect(() => {
+    if (!hasOrg) { setLoading(false); return }
+    // Load role templates from org data
+    dbGet(ROLES_KEY).then(saved => { if (saved?.length) setTemplates(saved) })
+    // Load members
+    getOrgMembers(user.orgId, user.accessToken).then(data => { setMembers(data); setLoading(false) })
+  }, [user?.orgId])
+
+  const saveTemplates = (updated) => {
+    setTemplates(updated)
+    dbSet(ROLES_KEY, updated)
   }
 
-  const remove = (email) => {
-    if (email.toLowerCase() === 'kyle@trymaxd.com') return // owner can't be removed
-    persist(approved.filter(u => u.email.toLowerCase() !== email.toLowerCase()))
+  const handleSaveRole = (roleData) => {
+    const existing = roleTemplates.find(r => r.id === roleData.id)
+    saveTemplates(existing ? roleTemplates.map(r => r.id === roleData.id ? roleData : r) : [...roleTemplates, roleData])
+    setEditRole(null)
   }
 
-  const updateRole = (email, role) => {
-    persist(approved.map(u => u.email.toLowerCase() === email.toLowerCase() ? { ...u, role } : u))
+  const handleDeleteRole = (id) => {
+    saveTemplates(roleTemplates.filter(r => r.id !== id))
   }
 
-  const inp = { display: 'block', padding: '0.45rem 0.6rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box' }
+  const handleSaveMember = async (memberData) => {
+    if (!hasOrg) return
+    const result = await upsertOrgMember(user.orgId, memberData, user.accessToken)
+    if (result.error) { setError(result.error); return }
+    const updated = await getOrgMembers(user.orgId, user.accessToken)
+    setMembers(updated)
+    setEditMember(null)
+    setError('')
+  }
+
+  const handleRemoveMember = async (email) => {
+    if (!hasOrg) return
+    await deleteOrgMember(user.orgId, email, user.accessToken)
+    setMembers(m => m.filter(u => u.email !== email))
+  }
+
+  if (!hasOrg) {
+    return (
+      <div style={{ marginBottom: '2rem', padding: '1rem', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: 10, fontSize: 13, color: 'var(--text-secondary)' }}>
+        Connect Supabase (Cloud Sync section below) to enable team access control.
+      </div>
+    )
+  }
 
   return (
     <div style={{ marginBottom: '2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+      {/* Header + tabs */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>🔒 Access Control</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Only emails on this list can sign up or log in. Roles control which pages they see.</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Access Control</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Define roles with default dashboards, then invite team members and customize their access.</div>
         </div>
-        <button onClick={() => setAdding(a => !a)} style={{ padding: '0.4rem 0.9rem', background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
-          {adding ? 'Cancel' : '+ Invite'}
-        </button>
+        {/* Tab switcher */}
+        <div style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+          {[['team','Team'],['roles','Roles']].map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)} style={{ padding: '0.35rem 0.9rem', fontSize: 13, fontWeight: tab === key ? 700 : 400, background: tab === key ? 'var(--navy)' : 'transparent', color: tab === key ? '#fff' : 'var(--text-secondary)', border: 'none', cursor: 'pointer' }}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Add form */}
-      {adding && (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '1rem', marginBottom: '0.75rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 130px auto', gap: '0.5rem', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Email
-              <input value={newEmail} onChange={e => { setNewEmail(e.target.value); setError('') }} onKeyDown={e => e.key === 'Enter' && add()} placeholder="teammate@trymaxd.com" autoComplete="off" style={{ ...inp, width: '100%', marginTop: 4 }} />
-            </label>
-            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Name (optional)
-              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="First Last" autoComplete="off" style={{ ...inp, width: '100%', marginTop: 4 }} />
-            </label>
-            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Role
-              <select value={newRole} onChange={e => setNewRole(e.target.value)} style={{ ...inp, width: '100%', marginTop: 4 }}>
-                {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>)}
-              </select>
-            </label>
-            <button onClick={add} style={{ padding: '0.45rem 0.9rem', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600, marginTop: 18 }}>Add</button>
+      {error && <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--red)' }}>{error}</div>}
+
+      {/* ── Roles tab ── */}
+      {tab === 'roles' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+            {isAdmin && (
+              <button onClick={() => setEditRole(false)} style={{ padding: '0.4rem 0.9rem', background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
+                + Create Role
+              </button>
+            )}
           </div>
-          {error && <div style={{ marginTop: 6, fontSize: 12, color: 'var(--red)' }}>{error}</div>}
-          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
-            After you add them, share the dashboard URL and tell them to click "Sign up" with this email address.
+          <div style={{ display: 'grid', gap: 8 }}>
+            {roleTemplates.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0.75rem 1rem', background: 'var(--surface-2)', border: `1px solid var(--border)`, borderLeft: `4px solid ${r.color}`, borderRadius: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{r.name}</div>
+                  <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {ALL_PAGES.filter(p => r.pages.includes(p.key)).map(p => (
+                      <span key={p.key} style={{ fontSize: 10, padding: '1px 6px', background: r.color + '22', color: r.color, borderRadius: 10, fontWeight: 600 }}>{p.label}</span>
+                    ))}
+                    {r.pages.length === 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No dashboards assigned</span>}
+                  </div>
+                </div>
+                {isAdmin && (
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button onClick={() => setEditRole(r)} style={{ fontSize: 11, padding: '3px 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-secondary)', cursor: 'pointer' }}>Edit</button>
+                    <button onClick={() => handleDeleteRole(r.id)} style={{ fontSize: 11, padding: '3px 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--red)', cursor: 'pointer' }}>Delete</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 12, padding: '0.6rem 0.9rem', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            Roles define default dashboard access. When you invite someone and assign them a role, their dashboards are auto-filled — you can still customize per person.
           </div>
         </div>
       )}
 
-      {/* Approved list */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 130px 60px', padding: '0.5rem 1rem', borderBottom: '1px solid var(--border)', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          <span>Email</span><span>Name</span><span>Role</span><span></span>
-        </div>
-        {approved.map(u => {
-          const isOwner = u.email.toLowerCase() === 'kyle@trymaxd.com'
-          return (
-            <div key={u.email} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 130px 60px', padding: '0.65rem 1rem', borderBottom: '1px solid var(--border)', alignItems: 'center', fontSize: 13 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: ROLE_COLORS[u.role] || 'var(--navy)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
-                  {(u.name || u.email).slice(0,2).toUpperCase()}
-                </div>
-                <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{u.email}</span>
-                {isOwner && <span style={{ fontSize: 10, background: '#E21B4D22', color: '#E21B4D', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>OWNER</span>}
-              </div>
-              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{u.name || '—'}</span>
-              <div>
-                {isOwner ? (
-                  <span style={{ fontSize: 12, color: ROLE_COLORS.admin, fontWeight: 700 }}>Admin</span>
-                ) : (
-                  <select value={u.role} onChange={e => updateRole(u.email, e.target.value)} style={{ ...inp, padding: '2px 6px', fontSize: 12, marginTop: 0 }}>
-                    {Object.keys(ROLE_LABELS).map(k => <option key={k} value={k}>{k.charAt(0).toUpperCase()+k.slice(1)}</option>)}
-                  </select>
-                )}
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                {!isOwner && (
-                  <button onClick={() => remove(u.email)} style={{ fontSize: 11, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--red)', cursor: 'pointer' }}>
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
+      {/* ── Team tab ── */}
+      {tab === 'team' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+            {canManage && (
+              <button onClick={() => setEditMember({})} style={{ padding: '0.4rem 0.9rem', background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
+                + Invite
+              </button>
+            )}
+          </div>
 
-      <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.9rem', background: 'rgba(226,27,77,0.06)', border: '1px solid rgba(226,27,77,0.15)', borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-        <strong>How it works:</strong> Add a teammate's email here, then share the dashboard URL with them. They click "Sign up", use that email, and create a password. Their role is set here — they can't change it themselves.
-      </div>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr 80px 80px 70px', padding: '0.5rem 1rem', borderBottom: '1px solid var(--border)', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <span>Member</span><span>Role</span><span>Access</span><span>Status</span><span></span>
+            </div>
+
+            {loading && <div style={{ padding: '1.5rem', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>Loading…</div>}
+
+            {!loading && members.map(m => {
+              const isYou    = m.email === user.email
+              const tmpl     = roleTemplates.find(r => r.name === m.role)
+              const roleColor = tmpl?.color || avatarColor(m.role)
+              const pageCount = m.pages?.length || 0
+              const canEdit   = isAdmin || (canManage && !m.can_manage && m.role !== 'admin')
+
+              return (
+                <div key={m.email} style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr 80px 80px 70px', padding: '0.65rem 1rem', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: avatarColor(m.email), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                      {(m.name || m.email).slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {m.name || m.email}
+                        {isYou && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>(you)</span>}
+                        {m.can_manage && m.role !== 'admin' && <span style={{ fontSize: 9, fontWeight: 700, background: '#f59e0b22', color: '#f59e0b', padding: '1px 5px', borderRadius: 4 }}>MGR</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.name ? m.email : ''}</div>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: roleColor, background: roleColor + '18', padding: '2px 8px', borderRadius: 20, display: 'inline-block' }}>
+                    {m.role}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{pageCount} page{pageCount !== 1 ? 's' : ''}</span>
+                  <span style={{ fontSize: 12, color: m.status === 'active' ? '#22c55e' : 'var(--text-muted)' }}>
+                    {m.status === 'active' ? 'Active' : 'Invited'}
+                  </span>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                    {canEdit && (
+                      <button onClick={() => setEditMember(m)} style={{ fontSize: 11, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-secondary)', cursor: 'pointer' }}>Edit</button>
+                    )}
+                    {!isYou && isAdmin && (
+                      <button onClick={() => handleRemoveMember(m.email)} style={{ fontSize: 11, padding: '3px 6px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--red)', cursor: 'pointer' }}>×</button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+
+            {!loading && members.length === 0 && (
+              <div style={{ padding: '1.5rem', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>No team members yet. Click "+ Invite" to add someone.</div>
+            )}
+          </div>
+
+          <div style={{ marginTop: '0.75rem', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            Share the dashboard URL. Invited members sign up with the exact email you entered and access activates automatically.
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      {editRole !== null && (
+        <RoleModal
+          role={editRole || null}
+          onClose={() => setEditRole(null)}
+          onSave={handleSaveRole}
+        />
+      )}
+      {editMember !== null && (
+        <MemberAccessModal
+          member={Object.keys(editMember).length ? editMember : null}
+          onClose={() => { setEditMember(null); setError('') }}
+          onSave={handleSaveMember}
+          currentUser={user}
+          roleTemplates={roleTemplates}
+          isAdmin={isAdmin}
+        />
+      )}
     </div>
   )
 }
