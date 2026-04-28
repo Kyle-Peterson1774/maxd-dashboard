@@ -161,10 +161,12 @@ function LoginPage({ onLogin }) {
         setLoading(false); return
       }
 
-      const orgId = membership.org_id
-      const role  = membership.role || 'content'
-      const pages = membership.pages?.length ? membership.pages : (PERMISSIONS[role] || PERMISSIONS.content)
+      const orgId     = membership.org_id
+      const role      = membership.role || 'content'
+      const pages     = membership.pages?.length ? membership.pages : (PERMISSIONS[role] || PERMISSIONS.content)
       const finalName = displayName || membership.name || email.split('@')[0]
+      // Admin role always gets manager access; otherwise check the can_manage flag
+      const canManage = role === 'admin' || !!membership.can_manage
 
       // Load integration credentials into memory
       const cloudCreds = await fetchOrgCredentials(orgId, accessToken)
@@ -176,6 +178,7 @@ function LoginPage({ onLogin }) {
         name:        finalName,
         role,
         pages,
+        canManage,
         orgId,
         orgName:     membership.organizations?.name || 'My Workspace',
         accessToken,
@@ -310,10 +313,13 @@ export function AuthProvider({ children }) {
     return false
   }
 
+  const isAdmin   = user?.role === 'admin'
+  const canManage = user?.canManage || isAdmin
+
   if (!user) return <LoginPage onLogin={login} />
 
   return (
-    <AuthContext.Provider value={{ user, hasAccess, logout }}>
+    <AuthContext.Provider value={{ user, hasAccess, logout, isAdmin, canManage }}>
       {children}
     </AuthContext.Provider>
   )
