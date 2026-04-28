@@ -533,7 +533,7 @@ function RoleModal({ role, onClose, onSave }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 14, width: '100%', maxWidth: 500, boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
+      <div style={{ background: '#ffffff', border: '1px solid var(--gray-100)', borderRadius: 14, width: '100%', maxWidth: 500, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden' }}>
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{isNew ? 'Create Role' : `Edit Role — ${role.name}`}</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
@@ -625,7 +625,7 @@ function MemberAccessModal({ member, onClose, onSave, currentUser, roleTemplates
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 14, width: '100%', maxWidth: 540, boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
+      <div style={{ background: '#ffffff', border: '1px solid var(--gray-100)', borderRadius: 14, width: '100%', maxWidth: 540, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden' }}>
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
             {isNew ? 'Invite Team Member' : `Edit — ${member.name || member.email}`}
