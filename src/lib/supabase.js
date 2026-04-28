@@ -103,8 +103,9 @@ export async function getOrgMembership(accessToken) {
   const cfg = getConfig()
   if (!cfg) return null
   try {
+    // No join to organizations — avoids RLS cross-table issues
     const res = await fetch(
-      `${cfg.url}/rest/v1/org_members?select=*,organizations(id,name,plan)&status=eq.active&limit=1`,
+      `${cfg.url}/rest/v1/org_members?select=*&status=eq.active&limit=1`,
       { headers: headers(cfg, accessToken) }
     )
     if (!res.ok) return null
