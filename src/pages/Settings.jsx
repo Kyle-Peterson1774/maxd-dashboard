@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
-import { getTeam, saveTeam, initials, memberColor } from '../lib/team.js'
+import { initials, memberColor } from '../lib/team.js'
 import { ROLE_LABELS, PERMISSIONS, useAuth } from '../lib/auth.jsx'
 import { getOrgMembers, upsertOrgMember, deleteOrgMember } from '../lib/supabase.js'
 import { dbGet, dbSet } from '../lib/db.js'
@@ -483,90 +483,6 @@ function IntegrationsSection({ onModal }) {
   )
 }
 
-// ── Section: Team ────────────────────────────────────────────────────────────
-const ROLES = {
-  admin:     { label: 'Admin',     color: '#DC2626', desc: 'Full access to all modules' },
-  content:   { label: 'Content',   color: '#7C3AED', desc: 'Dashboard, Social, Content, AI Studio' },
-  marketing: { label: 'Marketing', color: '#D97706', desc: 'Dashboard, Social, Marketing, Sales' },
-  ops:       { label: 'Ops',       color: '#059669', desc: 'Dashboard, Operations, Sales' },
-}
-
-function RoleBadge({ role }) {
-  const r = ROLES[role] || { label: role, color: 'var(--gray-400)' }
-  return (
-    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', padding: '3px 8px', borderRadius: 20, background: `${r.color}18`, color: r.color }}>
-      {r.label.toUpperCase()}
-    </span>
-  )
-}
-
-const EMPTY_MEMBER = { name: '', email: '', role: 'content' }
-
-function MemberModal({ member, onClose, onSave, onDelete }) {
-  const [form, setForm] = useState({ ...EMPTY_MEMBER, ...member })
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const isNew = !member?.id
-  const canSave = form.name.trim()
-
-  const handleSave = () => {
-    const id = form.id || `m_${Date.now()}`
-    const ini = initials(form.name)
-    const color = memberColor(id)
-    onSave({ ...form, id, initials: ini, color })
-    onClose()
-  }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', width: '100%', maxWidth: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
-        <div style={{ background: 'var(--navy)', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontFamily: 'var(--font-heading)', color: 'var(--white)', fontSize: 14, letterSpacing: '0.05em' }}>{isNew ? 'ADD TEAM MEMBER' : 'EDIT MEMBER'}</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--gray-400)', fontSize: 20, cursor: 'pointer' }}>×</button>
-        </div>
-        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {[
-            { key: 'name',  label: 'Full Name',     type: 'text',  placeholder: 'Jane Smith' },
-            { key: 'email', label: 'Email Address',  type: 'email', placeholder: 'jane@example.com' },
-          ].map(f => (
-            <div key={f.key}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--navy)', marginBottom: 5, letterSpacing: '0.04em' }}>{f.label}</label>
-              <input type={f.type} value={form[f.key]} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder}
-                autoComplete="off"
-                style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1.5px solid var(--gray-200)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--navy)', outline: 'none' }} />
-            </div>
-          ))}
-          <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--navy)', marginBottom: 5, letterSpacing: '0.04em' }}>ROLE</label>
-            <select value={form.role} onChange={e => set('role', e.target.value)}
-              style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--gray-200)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--navy)', background: 'var(--white)', outline: 'none' }}>
-              {Object.entries(ROLES).map(([k, r]) => <option key={k} value={k}>{r.label} — {r.desc}</option>)}
-            </select>
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--gray-400)', lineHeight: 1.6 }}>
-            📧 When you assign items to this team member in Scripts or Content, they'll appear in their queue. Full email notifications require Firebase Auth (coming soon).
-          </div>
-        </div>
-        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--gray-100)', background: 'var(--gray-50)', display: 'flex', justifyContent: 'space-between' }}>
-          <div>
-            {!isNew && member.id !== 'kyle' && (
-              <button onClick={() => { onDelete(member.id); onClose() }}
-                style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '1px solid #fca5a5', background: 'var(--white)', color: '#dc2626', cursor: 'pointer' }}>Remove</button>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={onClose} style={{ fontSize: 12, padding: '7px 16px', borderRadius: 6, border: '1px solid var(--gray-200)', background: 'var(--white)', color: 'var(--gray-600)', cursor: 'pointer' }}>Cancel</button>
-            <button onClick={handleSave} disabled={!canSave}
-              style={{ fontSize: 12, padding: '7px 20px', borderRadius: 6, border: 'none', background: canSave ? 'var(--navy)' : 'var(--gray-200)', color: 'var(--white)', cursor: canSave ? 'pointer' : 'default', fontWeight: 700 }}>
-              {isNew ? 'Add Member' : 'Save'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Section: Access Control ───────────────────────────────────────────────────
 
 // All pages with display labels and grouping
@@ -1021,81 +937,6 @@ function AccessControl() {
   )
 }
 
-function TeamSection() {
-  const [team, setTeam] = useState(getTeam)
-  const [modal, setModal] = useState(null)
-
-  const persist = (updated) => { saveTeam(updated); setTeam(updated) }
-  const handleSave = (member) => {
-    const idx = team.findIndex(m => m.id === member.id)
-    persist(idx >= 0 ? team.map(m => m.id === member.id ? member : m) : [...team, member])
-  }
-  const handleDelete = (id) => persist(team.filter(m => m.id !== id))
-
-  return (
-    <div>
-      {/* Team list */}
-      <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--gray-100)', overflow: 'hidden', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 80px', padding: '10px 16px', borderBottom: '1px solid var(--gray-100)', fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', letterSpacing: '0.08em' }}>
-          <span>MEMBER</span><span>ROLE</span><span style={{ textAlign: 'right' }}>ACTION</span>
-        </div>
-        {team.map(member => (
-          <div key={member.id} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 80px', padding: '12px 16px', alignItems: 'center', borderBottom: '1px solid var(--gray-50)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: member.color || 'var(--navy)', color: 'var(--white)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                {member.initials}
-              </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)' }}>
-                  {member.name}
-                  {member.id === 'kyle' && <span style={{ fontSize: 10, color: 'var(--gray-400)', fontWeight: 400, marginLeft: 6 }}>(you)</span>}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--gray-400)' }}>{member.email}</div>
-              </div>
-            </div>
-            <RoleBadge role={member.role} />
-            <div style={{ textAlign: 'right' }}>
-              <button onClick={() => setModal(member)} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--gray-200)', background: 'var(--white)', color: 'var(--gray-600)', cursor: 'pointer' }}>Edit</button>
-            </div>
-          </div>
-        ))}
-        {/* Add member row */}
-        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--gray-50)' }}>
-          <button onClick={() => setModal({})} style={{ fontSize: 12, padding: '7px 16px', borderRadius: 6, border: '1.5px dashed var(--gray-300)', background: 'var(--white)', color: 'var(--gray-500)', cursor: 'pointer', fontWeight: 600 }}>
-            + Add Team Member
-          </button>
-        </div>
-      </div>
-
-      {/* Role reference */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-500)', letterSpacing: '0.08em', marginBottom: 10 }}>ROLE PERMISSIONS</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8 }}>
-          {Object.entries(ROLES).map(([key, r]) => (
-            <div key={key} className="card" style={{ padding: '12px 14px', borderLeft: `3px solid ${r.color}` }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: r.color, letterSpacing: '0.04em', marginBottom: 4 }}>{r.label}</div>
-              <div style={{ fontSize: 11, color: 'var(--gray-500)', lineHeight: 1.6 }}>{r.desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ padding: '1rem 1.25rem', background: '#eff6ff', borderRadius: 'var(--radius)', border: '1px solid #bfdbfe', fontSize: 12, color: '#1e40af', lineHeight: 1.7 }}>
-        <strong>💡 Team assignment:</strong> Assign Scripts or Content items to team members — their work shows up in their Dashboard queue. Manage who can log in using the Access Control section above.
-      </div>
-
-      {modal !== null && (
-        <MemberModal
-          member={Object.keys(modal).length ? modal : null}
-          onClose={() => setModal(null)}
-          onSave={handleSave}
-          onDelete={handleDelete}
-        />
-      )}
-    </div>
-  )
-}
-
 // ── Section: Preferences ─────────────────────────────────────────────────────
 const PREFS_KEY = 'maxd_prefs'
 const DEFAULT_PREFS = {
@@ -1417,7 +1258,7 @@ export default function Settings() {
         {/* ── Content ── */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {activeSection === 'integrations' && <IntegrationsSection onModal={setActiveModal} />}
-          {activeSection === 'team'         && <><AccessControl /><TeamSection /></>}
+          {activeSection === 'team'         && <AccessControl />}
           {activeSection === 'preferences'  && <PreferencesSection />}
           {activeSection === 'about'        && <AboutSection />}
         </div>
