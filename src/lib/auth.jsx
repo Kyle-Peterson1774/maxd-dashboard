@@ -87,6 +87,12 @@ function parseRecoveryToken() {
   } catch { return null }
 }
 
+const SUPABASE_CRED_KEY = 'maxd_cred_supabase'
+
+function saveSupabaseConfig(projectUrl, anonKey) {
+  localStorage.setItem(SUPABASE_CRED_KEY, JSON.stringify({ projectUrl: projectUrl.trim(), anonKey: anonKey.trim() }))
+}
+
 function LoginPage({ onLogin }) {
   const recoveryToken               = parseRecoveryToken()
   const [mode, setMode]             = useState(recoveryToken ? 'recover' : 'login')
@@ -98,7 +104,24 @@ function LoginPage({ onLogin }) {
   const [loading, setLoading]       = useState(false)
   const [error, setError]           = useState('')
   const [successMsg, setSuccess]    = useState('')
-  const hasSupabase = isSupabaseConfigured()
+  const [hasSupabase, setHasSupabase] = useState(isSupabaseConfigured())
+
+  // Cloud setup state
+  const [projectUrl, setProjectUrl] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(SUPABASE_CRED_KEY) || '{}').projectUrl || '' } catch { return '' }
+  })
+  const [anonKey, setAnonKey] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(SUPABASE_CRED_KEY) || '{}').anonKey || '' } catch { return '' }
+  })
+
+  const handleCloudSave = () => {
+    if (!projectUrl.trim() || !anonKey.trim()) { setError('Both fields are required'); return }
+    if (!projectUrl.includes('supabase.co') && !projectUrl.startsWith('http')) { setError('Project URL should be your Supabase project URL (e.g. https://xxx.supabase.co)'); return }
+    saveSupabaseConfig(projectUrl, anonKey)
+    setHasSupabase(true)
+    setError(''); setSuccess('Cloud connected! You can now sign in.')
+    setMode('login')
+  }
 
   const handleForgot = async () => {
     if (!email) { setError('Enter your email address'); return }
@@ -292,6 +315,50 @@ function LoginPage({ onLogin }) {
     </div>
   )
 
+  // ── Cloud setup mode ─────────────────────────────────────────────────────────
+  if (mode === 'cloud') return (
+    <div style={{ minHeight: '100vh', background: '#0f0f1a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ width: '100%', maxWidth: 420 }}>
+        {logoBlock}
+        <div style={card}>
+          <h2 style={{ margin: '0 0 0.4rem', color: '#fff', fontSize: 18, fontWeight: 600 }}>Connect to Cloud</h2>
+          <p style={{ margin: '0 0 1.25rem', fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
+            Enter your Supabase project details to enable cloud sync on this device. You only need to do this once per device.
+          </p>
+          <div style={{ display: 'grid', gap: '0.875rem' }}>
+            <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>
+              Supabase Project URL
+              <input
+                value={projectUrl}
+                onChange={e => setProjectUrl(e.target.value)}
+                placeholder="https://xxxxxxxxxxxx.supabase.co"
+                style={inp}
+              />
+            </label>
+            <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>
+              Anon / Public Key
+              <input
+                value={anonKey}
+                onChange={e => setAnonKey(e.target.value)}
+                placeholder="eyJhbGci…"
+                style={inp}
+              />
+            </label>
+          </div>
+          <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.75rem', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, fontSize: 12, color: 'rgba(147,197,253,0.8)', lineHeight: 1.5 }}>
+            Find these in your <strong>Supabase Dashboard → Project Settings → API</strong>. The anon key is safe to store here — security comes from Row Level Security policies, not from hiding this key.
+          </div>
+          {error && <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.75rem', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, fontSize: 13, color: '#f87171' }}>{error}</div>}
+          {successMsg && <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.75rem', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, fontSize: 13, color: '#86efac' }}>{successMsg}</div>}
+          <button onClick={handleCloudSave} style={btn}>Save & Connect</button>
+          <div style={{ marginTop: '1.25rem', textAlign: 'center' }}>
+            <button onClick={() => { setMode('login'); setError(''); setSuccess('') }} style={link}>Back to sign in</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
   // ── Login / Signup mode ──────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: '#0f0f1a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', fontFamily: 'Inter, sans-serif' }}>
@@ -331,8 +398,11 @@ function LoginPage({ onLogin }) {
           )}
 
           {!hasSupabase && (
-            <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.75rem', background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.25)', borderRadius: 8, fontSize: 12, color: 'rgba(253,224,71,0.9)', lineHeight: 1.5 }}>
-              Supabase not configured — running in local mode. Go to Settings → Cloud Sync to connect Supabase and enable secure cloud storage.
+            <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.75rem', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.25)', borderRadius: 8, fontSize: 12, color: 'rgba(253,224,71,0.9)', lineHeight: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span>☁️ Not connected to cloud — your data won't sync across devices.</span>
+              <button onClick={() => { setMode('cloud'); setError(''); setSuccess('') }} style={{ background: 'rgba(234,179,8,0.2)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 6, color: 'rgba(253,224,71,1)', fontSize: 11, fontWeight: 700, padding: '3px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                Connect
+              </button>
             </div>
           )}
 
