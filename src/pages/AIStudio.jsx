@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
-import { getCredentials } from '../lib/credentials.js'
 import { useAuth } from '../lib/auth.jsx'
 
 // User-scoped keys — each team member has their own saved copies and recent list
@@ -57,8 +56,18 @@ function loadCopies(email) { try { return JSON.parse(localStorage.getItem(copies
 function saveCopies(email, d) { localStorage.setItem(copiesKey(email), JSON.stringify(d)) }
 function loadRecent(email)  { try { return JSON.parse(localStorage.getItem(recentKey(email))  || '[]') } catch { return [] } }
 function saveRecent(email, d)  { localStorage.setItem(recentKey(email),  JSON.stringify(d)) }
-function getApiKey() { return getCredentials('anthropic')?.apiKey?.trim() || '' }
 function nid() { return `c_${Date.now()}_${Math.random().toString(36).slice(2,5)}` }
+
+async function callAI(prompt, maxTokens = 1024) {
+  const res = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, maxTokens }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || `AI error ${res.status}`)
+  return data.content || ''
+}
 
 const inp = { display: 'block', width: '100%', marginTop: 4, padding: '0.45rem 0.6rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 14, boxSizing: 'border-box' }
 const btnPrimary = { background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, padding: '0.5rem 1.1rem', fontSize: 14, cursor: 'pointer', fontWeight: 600 }
@@ -291,7 +300,7 @@ Generate a complete product launch kit with all of the following:
 ]
 
 // ── Single Agent Runner ─────────────────────────────────────────────────────
-function AgentRunner({ agent, apiKey }) {
+function AgentRunner({ agent }) {
   const [fields, setFields] = useState({})
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState('')
@@ -303,21 +312,10 @@ function AgentRunner({ agent, apiKey }) {
   const run = async () => {
     const missing = agent.fields.filter(f => !fields[f.key]?.trim())
     if (missing.length) { setError(`Fill in: ${missing.map(f => f.label).join(', ')}`); return }
-    if (!apiKey) { setError('No API key — go to Settings → Integrations → Anthropic'); return }
     setRunning(true); setResult(''); setError('')
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 2048,
-          messages: [{ role: 'user', content: agent.buildPrompt(fields) }],
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`)
-      setResult(data.content?.[0]?.text || '')
+      const text = await callAI(agent.buildPrompt(fields), 2048)
+      setResult(text)
     } catch (e) { setError(e.message || 'Something went wrong') }
     finally { setRunning(false) }
   }
@@ -408,7 +406,7 @@ function AgentRunner({ agent, apiKey }) {
 }
 
 // ── Agents Tab ──────────────────────────────────────────────────────────────
-function AgentsTab({ apiKey }) {
+function AgentsTab() {
   const [activeAgent, setActiveAgent] = useState(AGENTS[0].id)
   const agent = AGENTS.find(a => a.id === activeAgent)
 
@@ -433,7 +431,7 @@ function AgentsTab({ apiKey }) {
       </div>
 
       {/* Active agent */}
-      {agent && <AgentRunner key={agent.id} agent={agent} apiKey={apiKey} />}
+      {agent && <AgentRunner key={agent.id} agent={agent} />}
     </div>
   )
 }
@@ -456,8 +454,6 @@ export default function AIStudio() {
   const [recent, setRecent] = useState(() => loadRecent(email))
   const [copied, setCopied] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
-
-  const apiKey = getApiKey()
 
   const filteredTemplates = useMemo(() => {
     return catFilter === 'All' ? TEMPLATES : TEMPLATES.filter(t => t.cat === catFilter)
@@ -482,20 +478,13 @@ export default function AIStudio() {
   }
 
   const generate = async () => {
-    if (!apiKey) { setError('No API key found. Go to Settings → Integrations to add your Anthropic API key.'); return }
     if (!selectedTmpl) { setError('Select a template first.'); return }
     setLoading(true); setError(''); setOutput('')
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: buildPrompt() }] }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`)
-      setOutput(data.content?.[0]?.text || '')
+      const text = await callAI(buildPrompt())
+      setOutput(text)
     } catch (e) {
-      setError(e.message || 'Something went wrong. Check your API key.')
+      setError(e.message || 'Something went wrong.')
     } finally {
       setLoading(false)
     }
@@ -525,13 +514,6 @@ export default function AIStudio() {
     <div style={{ padding: '1.5rem', maxWidth: 1200, margin: '0 auto' }}>
       <PageHeader title="AI Studio" subtitle="Generate on-brand copy for social, email, ads & more" />
 
-      {!apiKey && (
-        <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1.25rem', fontSize: 14, color: '#991b1b', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span>🔑</span>
-          <span>No Anthropic API key found. Go to <strong>Settings → Integrations</strong> and connect Anthropic to enable generation.</span>
-        </div>
-      )}
-
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
         <button style={tabStyle('agents')} onClick={() => setTab('agents')}>
           🤖 Agents <span style={{ fontSize: 10, background: '#E21B4D', color: '#fff', padding: '1px 5px', borderRadius: 4, marginLeft: 4, fontWeight: 700 }}>NEW</span>
@@ -542,7 +524,7 @@ export default function AIStudio() {
         </button>
       </div>
 
-      {tab === 'agents' && <AgentsTab apiKey={apiKey} />}
+      {tab === 'agents' && <AgentsTab />}
 
       {tab === 'generate' && (
         <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '1.25rem', alignItems: 'start' }}>
@@ -604,7 +586,7 @@ export default function AIStudio() {
                 </div>
               )}
 
-              <button onClick={generate} disabled={loading || !selectedTmpl || !apiKey} style={{ ...btnPrimary, marginTop: '0.75rem', opacity: (!selectedTmpl || !apiKey) ? 0.5 : 1, width: '100%' }}>
+              <button onClick={generate} disabled={loading || !selectedTmpl} style={{ ...btnPrimary, marginTop: '0.75rem', opacity: !selectedTmpl ? 0.5 : 1, width: '100%' }}>
                 {loading ? '⏳ Generating…' : '✨ Generate Copy'}
               </button>
             </div>
