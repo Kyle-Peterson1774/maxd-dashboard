@@ -1,11 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { useAuth, PERMISSIONS } from '../../lib/auth.jsx'
-import { isSupabaseConfigured } from '../../lib/supabase.js'
+import { useAuth } from '../../lib/auth.jsx'
 import { useState, useEffect } from 'react'
 
-/* ── Clean icon set (no emojis) ─────────────────────────────────── */
+/* ── Icons ───────────────────────────────────────────────────────────────── */
 const ICONS = {
-  dashboard:  () => (
+  dashboard: () => (
     <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
       <rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.9"/>
       <rect x="8" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.5"/>
@@ -43,6 +42,12 @@ const ICONS = {
       <circle cx="12" cy="10.5" r="2" stroke="currentColor" strokeWidth="1.3" fill="none"/>
     </svg>
   ),
+  marketing: () => (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <path d="M2 9.5V5.5l9-3.5v11L2 9.5z" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinejoin="round"/>
+      <path d="M2 9.5h2.5v3L2 9.5z" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+    </svg>
+  ),
   products: () => (
     <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
       <path d="M7.5 1.5l5.5 3v6l-5.5 3-5.5-3v-6z" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinejoin="round"/>
@@ -57,12 +62,6 @@ const ICONS = {
   sales: () => (
     <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
       <path d="M7.5 2v11M4.5 5.5C4.5 4.12 5.84 3 7.5 3s3 1.12 3 2.5c0 2.5-6 2.5-6 5C4.5 11.88 5.84 13 7.5 13s3-1.12 3-2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-    </svg>
-  ),
-  marketing: () => (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <path d="M2 9.5V5.5l9-3.5v11L2 9.5z" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinejoin="round"/>
-      <path d="M2 9.5h2.5v3L2 9.5z" stroke="currentColor" strokeWidth="1.2" fill="none"/>
     </svg>
   ),
   finance: () => (
@@ -96,108 +95,72 @@ const ICONS = {
       <path d="M7.5 1.5v1.2M7.5 12.3v1.2M1.5 7.5h1.2M12.3 7.5h1.2M3.4 3.4l.85.85M10.75 10.75l.85.85M3.4 11.6l.85-.85M10.75 4.25l.85-.85" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
     </svg>
   ),
+  signout: () => (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+      <path d="M5 2H2a1 1 0 00-1 1v7a1 1 0 001 1h3M9 9.5l3-3-3-3M12 6.5H5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
 }
 
-const NAV_ITEMS = [
-  { path: '/dashboard',  label: 'Dashboard',   icon: 'dashboard',   page: 'dashboard'  },
-  { path: '/social',     label: 'Social',       icon: 'social',      page: 'social'     },
-  { path: '/scripts',    label: 'Scripts',      icon: 'scripts',     page: 'scripts'    },
-  { path: '/content',    label: 'Calendar',     icon: 'content',     page: 'content'    },
-  { path: '/launches',   label: 'Launches',     icon: 'launches',    page: 'launches'   },
-  { path: '/ads',        label: 'Ad Creative',  icon: 'ads',         page: 'ads'        },
-  { path: '/products',   label: 'Products',     icon: 'products',    page: 'products'   },
-  { path: '/analytics',  label: 'Analytics',    icon: 'analytics',   page: 'analytics'  },
-  { path: '/sales',      label: 'Sales',        icon: 'sales',       page: 'sales'      },
-  { path: '/marketing',  label: 'Marketing',    icon: 'marketing',   page: 'marketing'  },
-  { path: '/finance',    label: 'Finance',      icon: 'finance',     page: 'finance'    },
-  { path: '/operations', label: 'Operations',   icon: 'operations',  page: 'operations' },
-  { path: '/ai',         label: 'AI Studio',    icon: 'ai',          page: 'ai'         },
-  { path: '/queue',      label: 'Action Queue', icon: 'queue',       page: 'queue'      },
+/* ── Nav groups ──────────────────────────────────────────────────────────── */
+const NAV_GROUPS = [
+  {
+    label: null,
+    items: [
+      { path: '/dashboard', label: 'Dashboard', icon: 'dashboard', page: 'dashboard' },
+    ],
+  },
+  {
+    label: 'Content',
+    items: [
+      { path: '/social',   label: 'Social',    icon: 'social',   page: 'social'   },
+      { path: '/scripts',  label: 'Scripts',   icon: 'scripts',  page: 'scripts'  },
+      { path: '/content',  label: 'Calendar',  icon: 'content',  page: 'content'  },
+    ],
+  },
+  {
+    label: 'Growth',
+    items: [
+      { path: '/launches',  label: 'Launches',    icon: 'launches',  page: 'launches'  },
+      { path: '/ads',       label: 'Ad Creative', icon: 'ads',       page: 'ads'       },
+      { path: '/marketing', label: 'Marketing',   icon: 'marketing', page: 'marketing' },
+    ],
+  },
+  {
+    label: 'Commerce',
+    items: [
+      { path: '/products',  label: 'Products',  icon: 'products',  page: 'products'  },
+      { path: '/analytics', label: 'Analytics', icon: 'analytics', page: 'analytics' },
+      { path: '/sales',     label: 'Sales',     icon: 'sales',     page: 'sales'     },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { path: '/finance',    label: 'Finance',    icon: 'finance',    page: 'finance'    },
+      { path: '/operations', label: 'Operations', icon: 'operations', page: 'operations' },
+    ],
+  },
+  {
+    label: 'Intelligence',
+    items: [
+      { path: '/ai',    label: 'AI Studio',    icon: 'ai',    page: 'ai',    badge: 'new' },
+      { path: '/queue', label: 'Action Queue', icon: 'queue', page: 'queue', badge: 'count' },
+    ],
+  },
 ]
 
-function NavItem({ item, onClick, badge }) {
-  const Icon = ICONS[item.icon]
-  return (
-    <NavLink
-      to={item.path}
-      onClick={onClick}
-      style={({ isActive: active }) => ({
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '8px 14px',
-        margin: '1px 8px',
-        fontSize: 13,
-        fontWeight: active ? 500 : 400,
-        color: active ? '#FFFFFF' : 'rgba(255,255,255,0.45)',
-        background: active ? 'var(--sidebar-active)' : 'transparent',
-        borderRadius: 8,
-        borderLeft: active ? '2px solid var(--red)' : '2px solid transparent',
-        transition: 'all 0.12s ease',
-        textDecoration: 'none',
-        position: 'relative',
-        letterSpacing: '0.01em',
-      })}
-      onMouseEnter={e => {
-        if (!e.currentTarget.classList.contains('active')) {
-          e.currentTarget.style.background = 'var(--sidebar-hover)'
-          e.currentTarget.style.color = 'rgba(255,255,255,0.75)'
-        }
-      }}
-      onMouseLeave={e => {
-        if (!e.currentTarget.classList.contains('active')) {
-          e.currentTarget.style.background = 'transparent'
-          e.currentTarget.style.color = 'rgba(255,255,255,0.45)'
-        }
-      }}
-    >
-      <span style={{ width: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        {Icon && <Icon />}
-      </span>
-      <span style={{ flex: 1 }}>{item.label}</span>
-      {item.page === 'ai' && (
-        <span style={{
-          fontSize: 9,
-          padding: '1px 5px',
-          borderRadius: 3,
-          background: 'var(--red)',
-          color: '#fff',
-          fontWeight: 700,
-          letterSpacing: '0.06em',
-          lineHeight: '14px',
-        }}>
-          NEW
-        </span>
-      )}
-      {badge > 0 && (
-        <span style={{
-          fontSize: 9.5,
-          padding: '1px 6px',
-          borderRadius: 10,
-          background: '#f59e0b',
-          color: '#000',
-          fontWeight: 700,
-          lineHeight: '14px',
-          minWidth: 18,
-          textAlign: 'center',
-        }}>
-          {badge}
-        </span>
-      )}
-    </NavLink>
-  )
-}
-
-/* ── Mountain mark (simplified MAXD logo shape) ──────────────────── */
-function MountainMark({ size = 22, color = '#E21B4D' }) {
+/* ── Logo mark ───────────────────────────────────────────────────────────── */
+function MountainMark({ size = 22 }) {
   return (
     <svg width={size} height={size * 0.75} viewBox="0 0 24 18" fill="none">
-      <path d="M0 18 L8 2 L12 9 L14 6 L24 18Z" fill={color} opacity="0.9"/>
-      <path d="M12 9 L14 6 L24 18 L12 18Z" fill={color} opacity="0.5"/>
+      <path d="M0 18 L8 2 L12 9 L14 6 L24 18Z" fill="#E21B4D" opacity="0.95"/>
+      <path d="M12 9 L14 6 L24 18 L12 18Z" fill="#E21B4D" opacity="0.45"/>
     </svg>
   )
 }
 
+/* ── Pending queue count ─────────────────────────────────────────────────── */
 function usePendingQueueCount() {
   const [count, setCount] = useState(0)
   useEffect(() => {
@@ -214,9 +177,69 @@ function usePendingQueueCount() {
   return count
 }
 
+/* ── Nav item ────────────────────────────────────────────────────────────── */
+function NavItem({ item, onClick, pendingCount }) {
+  const Icon = ICONS[item.icon]
+  const queueBadge = item.badge === 'count' && pendingCount > 0 ? pendingCount : null
+  const newBadge   = item.badge === 'new'
+
+  return (
+    <NavLink
+      to={item.path}
+      onClick={onClick}
+      style={({ isActive }) => ({
+        display: 'flex',
+        alignItems: 'center',
+        gap: 9,
+        padding: '6.5px 10px',
+        margin: '1px 6px',
+        fontSize: 13,
+        fontWeight: isActive ? 500 : 400,
+        color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.48)',
+        background: isActive ? 'rgba(255,255,255,0.09)' : 'transparent',
+        borderRadius: 7,
+        transition: 'all 0.12s ease',
+        textDecoration: 'none',
+        letterSpacing: '0.01em',
+        outline: 'none',
+      })}
+      onMouseEnter={e => {
+        const link = e.currentTarget
+        if (link.getAttribute('aria-current') !== 'page') {
+          link.style.background = 'rgba(255,255,255,0.05)'
+          link.style.color = 'rgba(255,255,255,0.72)'
+        }
+      }}
+      onMouseLeave={e => {
+        const link = e.currentTarget
+        if (link.getAttribute('aria-current') !== 'page') {
+          link.style.background = 'transparent'
+          link.style.color = 'rgba(255,255,255,0.48)'
+        }
+      }}
+    >
+      <span style={{ width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: 0.85 }}>
+        {Icon && <Icon />}
+      </span>
+      <span style={{ flex: 1 }}>{item.label}</span>
+      {newBadge && (
+        <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'var(--red)', color: '#fff', fontWeight: 700, letterSpacing: '0.06em', lineHeight: '14px' }}>
+          NEW
+        </span>
+      )}
+      {queueBadge && (
+        <span style={{ fontSize: 9.5, padding: '1px 6px', borderRadius: 10, background: '#f59e0b', color: '#000', fontWeight: 700, lineHeight: '14px', minWidth: 18, textAlign: 'center' }}>
+          {queueBadge}
+        </span>
+      )}
+    </NavLink>
+  )
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
 export default function Sidebar({ onNavClick }) {
   const { user, hasAccess, logout } = useAuth()
-  const pendingQueue = usePendingQueueCount()
+  const pendingCount = usePendingQueueCount()
 
   return (
     <aside style={{
@@ -226,179 +249,94 @@ export default function Sidebar({ onNavClick }) {
       flexDirection: 'column',
       height: '100vh',
       position: 'fixed',
-      left: 0,
-      top: 0,
+      left: 0, top: 0,
       zIndex: 100,
       borderRight: '1px solid var(--sidebar-border)',
     }}>
 
-      {/* Logo area */}
-      <div style={{
-        padding: '1.4rem 1.25rem 1.1rem',
-        borderBottom: '1px solid var(--sidebar-border)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-      }}>
-        <MountainMark size={22} color="var(--red)" />
+      {/* ── Logo ── */}
+      <div style={{ padding: '1.25rem 1.1rem 1rem', borderBottom: '1px solid var(--sidebar-border)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        <MountainMark size={24} />
         <div>
-          <div style={{
-            fontFamily: 'var(--font-heading)',
-            fontSize: 20,
-            fontWeight: 700,
-            color: '#FFFFFF',
-            letterSpacing: '0.10em',
-            lineHeight: 1,
-          }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 19, fontWeight: 700, color: '#fff', letterSpacing: '0.12em', lineHeight: 1 }}>
             MAXD
           </div>
-          <div style={{
-            fontSize: 9,
-            color: 'rgba(255,255,255,0.3)',
-            letterSpacing: '0.14em',
-            textTransform: 'uppercase',
-            marginTop: 3,
-            fontFamily: 'var(--font-body)',
-            fontWeight: 500,
-          }}>
-            Operations Hub
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.28)', letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 3, fontWeight: 500 }}>
+            Business OS
           </div>
         </div>
       </div>
 
-      {/* Nav group label */}
-      <div style={{ padding: '1rem 1.4rem 0.4rem' }}>
-        <span style={{
-          fontSize: 9.5,
-          fontWeight: 600,
-          color: 'rgba(255,255,255,0.22)',
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          fontFamily: 'var(--font-body)',
-        }}>
-          Navigation
-        </span>
-      </div>
-
-      {/* Nav links */}
-      <nav style={{ flex: 1, paddingBottom: '0.5rem', overflowY: 'auto' }}>
-        {NAV_ITEMS.filter(item => hasAccess(item.page)).map(item => (
-          <NavItem
-            key={item.path}
-            item={item}
-            onClick={onNavClick}
-            badge={item.page === 'queue' ? pendingQueue : 0}
-          />
-        ))}
+      {/* ── Nav groups ── */}
+      <nav style={{ flex: 1, overflowY: 'auto', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
+        {NAV_GROUPS.map((group, gi) => {
+          const visibleItems = group.items.filter(item => hasAccess(item.page))
+          if (!visibleItems.length) return null
+          return (
+            <div key={gi} style={{ marginBottom: '0.25rem' }}>
+              {group.label && (
+                <div style={{ padding: '0.6rem 1.1rem 0.25rem', fontSize: 9.5, fontWeight: 600, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.13em', textTransform: 'uppercase' }}>
+                  {group.label}
+                </div>
+              )}
+              {visibleItems.map(item => (
+                <NavItem key={item.path} item={item} onClick={onNavClick} pendingCount={pendingCount} />
+              ))}
+            </div>
+          )
+        })}
       </nav>
 
-      {/* Bottom: Settings + User */}
-      <div style={{
-        borderTop: '1px solid var(--sidebar-border)',
-        paddingTop: '0.5rem',
-        paddingBottom: '0.5rem',
-      }}>
+      {/* ── Bottom ── */}
+      <div style={{ borderTop: '1px solid var(--sidebar-border)', flexShrink: 0 }}>
+        {/* Settings */}
         {hasAccess('settings') && (
-          <NavLink
-            to="/settings"
-            style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '8px 14px', margin: '1px 8px',
-              fontSize: 13, fontWeight: isActive ? 500 : 400,
-              color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.45)',
-              background: isActive ? 'var(--sidebar-active)' : 'transparent',
-              borderRadius: 8,
-              borderLeft: isActive ? '2px solid var(--red)' : '2px solid transparent',
-              textDecoration: 'none',
-            })}
-          >
-            <span style={{ width: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ICONS.settings />
-            </span>
-            Settings
-          </NavLink>
+          <div style={{ padding: '0.4rem 0 0' }}>
+            <NavLink
+              to="/settings"
+              onClick={onNavClick}
+              style={({ isActive }) => ({
+                display: 'flex', alignItems: 'center', gap: 9,
+                padding: '6.5px 10px', margin: '1px 6px',
+                fontSize: 13, fontWeight: isActive ? 500 : 400,
+                color: isActive ? '#fff' : 'rgba(255,255,255,0.48)',
+                background: isActive ? 'rgba(255,255,255,0.09)' : 'transparent',
+                borderRadius: 7, textDecoration: 'none', transition: 'all 0.12s',
+              })}
+              onMouseEnter={e => { if (e.currentTarget.getAttribute('aria-current') !== 'page') { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.72)' } }}
+              onMouseLeave={e => { if (e.currentTarget.getAttribute('aria-current') !== 'page') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.48)' } }}
+            >
+              <span style={{ width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: 0.85 }}><ICONS.settings /></span>
+              Settings
+            </NavLink>
+          </div>
         )}
 
+        {/* User row */}
         {user && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '10px 1.25rem',
-            marginTop: 4,
-            position: 'relative',
-          }}>
-            <button
-              onClick={logout}
-              title="Sign out"
-              style={{
-                position: 'absolute',
-                right: 12,
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'rgba(255,255,255,0.25)',
-                padding: 4,
-                borderRadius: 4,
-                display: 'flex',
-                alignItems: 'center',
-                transition: 'color 0.15s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
-              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.25)'}
-            >
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                <path d="M5 2H2a1 1 0 00-1 1v7a1 1 0 001 1h3M9 9.5l3-3-3-3M12 6.5H5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            <div style={{
-              width: 30, height: 30,
-              borderRadius: '50%',
-              background: 'var(--red)',
-              color: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 11, fontWeight: 700, flexShrink: 0,
-              fontFamily: 'var(--font-heading)',
-              letterSpacing: '0.04em',
-            }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0.7rem 1rem 0.75rem', marginTop: 2 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--red)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, fontWeight: 700, flexShrink: 0, fontFamily: 'var(--font-heading)', letterSpacing: '0.04em' }}>
               {user.initials}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontSize: 12.5,
-                fontWeight: 500,
-                color: 'rgba(255,255,255,0.85)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}>
+              <div style={{ fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,0.88)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user.name}
               </div>
-              <div style={{
-                fontSize: 10,
-                color: 'rgba(255,255,255,0.3)',
-                textTransform: 'capitalize',
-              }}>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', textTransform: 'capitalize', marginTop: 1 }}>
                 {user.role}
               </div>
             </div>
+            <button
+              onClick={logout}
+              title="Sign out"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.22)', padding: 4, borderRadius: 4, display: 'flex', alignItems: 'center', transition: 'color 0.15s', flexShrink: 0 }}
+              onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.65)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.22)'}
+            >
+              <ICONS.signout />
+            </button>
           </div>
         )}
-
-        {/* Cloud sync status */}
-        <div style={{ padding: '8px 1.25rem 12px', marginTop: 2 }}>
-          {isSupabaseConfigured() ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'rgba(255,255,255,0.35)' }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
-              Cloud sync active
-            </div>
-          ) : (
-            <NavLink to="/settings" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'rgba(255,255,255,0.3)' }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
-              Local only — connect Supabase
-            </NavLink>
-          )}
-        </div>
       </div>
     </aside>
   )
