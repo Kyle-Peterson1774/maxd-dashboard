@@ -1,26 +1,25 @@
 // ============================================================
 // SUPABASE CLIENT
 //
-// Reads the Supabase project URL and anon key directly from
-// localStorage (these are public values — Supabase is designed
-// for the anon key to be exposed to the client; RLS policies
-// protect the actual data).
+// Config is read from Vite environment variables baked in at
+// build time. Set these in Vercel → Settings → Environment
+// Variables (and locally in .env.local):
 //
-// All data requests use the user's JWT (access token) in the
-// Authorization header so RLS policies can identify the user
-// and restrict data to their organization.
+//   VITE_SUPABASE_URL    = https://xxxx.supabase.co
+//   VITE_SUPABASE_ANON_KEY = eyJ...
+//
+// The anon key is safe to expose to the browser — Supabase
+// designed it this way. RLS policies + user JWTs protect data.
+//
+// All data requests include the user's JWT in Authorization so
+// RLS can identify the user and restrict data to their org.
 // ============================================================
 
-const SUPABASE_CRED_KEY = 'maxd_cred_supabase'
-
 function getConfig() {
-  try {
-    const raw = localStorage.getItem(SUPABASE_CRED_KEY)
-    if (!raw) return null
-    const { projectUrl, anonKey } = JSON.parse(raw)
-    if (!projectUrl || !anonKey) return null
-    return { url: projectUrl.replace(/\/$/, ''), key: anonKey }
-  } catch { return null }
+  const url = import.meta.env.VITE_SUPABASE_URL
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+  if (!url || !key) return null
+  return { url: url.replace(/\/$/, ''), key }
 }
 
 function headers(cfg, accessToken, extra = {}) {
@@ -42,7 +41,7 @@ export function isSupabaseConfigured() {
 
 export async function supabaseSignIn(email, password) {
   const cfg = getConfig()
-  if (!cfg) return { error: 'Supabase not configured' }
+  if (!cfg) return { error: 'Platform not configured — contact support.' }
   try {
     const res = await fetch(`${cfg.url}/auth/v1/token?grant_type=password`, {
       method: 'POST',
@@ -57,7 +56,7 @@ export async function supabaseSignIn(email, password) {
 
 export async function supabaseSignUp(email, password, name) {
   const cfg = getConfig()
-  if (!cfg) return { error: 'Supabase not configured' }
+  if (!cfg) return { error: 'Platform not configured — contact support.' }
   try {
     const res = await fetch(`${cfg.url}/auth/v1/signup`, {
       method: 'POST',
@@ -72,9 +71,9 @@ export async function supabaseSignUp(email, password, name) {
 
 export async function supabaseRequestPasswordReset(email) {
   const cfg = getConfig()
-  if (!cfg) return { error: 'Supabase not configured' }
+  if (!cfg) return { error: 'Platform not configured — contact support.' }
   try {
-    const redirectTo = window.location.origin + window.location.pathname
+    const redirectTo = window.location.origin + '/'
     const res = await fetch(`${cfg.url}/auth/v1/recover`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': cfg.key },
@@ -90,7 +89,7 @@ export async function supabaseRequestPasswordReset(email) {
 
 export async function supabaseUpdatePassword(accessToken, newPassword) {
   const cfg = getConfig()
-  if (!cfg) return { error: 'Supabase not configured' }
+  if (!cfg) return { error: 'Platform not configured — contact support.' }
   try {
     const res = await fetch(`${cfg.url}/auth/v1/user`, {
       method: 'PUT',
@@ -115,10 +114,9 @@ export async function supabaseSignOut(accessToken) {
 
 // ── Organizations ─────────────────────────────────────────────────────────────
 
-// Create a new organization (called on first-ever signup)
 export async function createOrg(name, accessToken) {
   const cfg = getConfig()
-  if (!cfg) return { error: 'Supabase not configured' }
+  if (!cfg) return { error: 'Platform not configured.' }
   try {
     const res = await fetch(`${cfg.url}/rest/v1/organizations`, {
       method: 'POST',
@@ -131,12 +129,10 @@ export async function createOrg(name, accessToken) {
   } catch (e) { return { error: e.message } }
 }
 
-// Load the current user's org membership (org_id, role, pages, status)
 export async function getOrgMembership(accessToken) {
   const cfg = getConfig()
   if (!cfg) return null
   try {
-    // No join to organizations — avoids RLS cross-table issues
     const res = await fetch(
       `${cfg.url}/rest/v1/org_members?select=*&status=eq.active&limit=1`,
       { headers: headers(cfg, accessToken) }
@@ -163,10 +159,9 @@ export async function getOrgMembers(orgId, accessToken) {
   } catch { return [] }
 }
 
-// Invite a new member or update an existing one (upsert by org_id + email)
 export async function upsertOrgMember(orgId, member, accessToken) {
   const cfg = getConfig()
-  if (!cfg) return { error: 'Supabase not configured' }
+  if (!cfg) return { error: 'Platform not configured.' }
   try {
     const res = await fetch(`${cfg.url}/rest/v1/org_members`, {
       method: 'POST',
@@ -194,7 +189,6 @@ export async function deleteOrgMember(orgId, memberEmail, accessToken) {
 
 // ── Credentials ───────────────────────────────────────────────────────────────
 
-// Fetch all integration credentials for the org (returns { shopify: {...}, klaviyo: {...}, ... })
 export async function fetchOrgCredentials(orgId, accessToken) {
   const cfg = getConfig()
   if (!cfg) return {}
@@ -209,7 +203,6 @@ export async function fetchOrgCredentials(orgId, accessToken) {
   } catch { return {} }
 }
 
-// Save one integration's credentials (upsert by org_id + service)
 export async function saveOrgCredential(orgId, service, data, accessToken) {
   const cfg = getConfig()
   if (!cfg) return false
@@ -223,7 +216,6 @@ export async function saveOrgCredential(orgId, service, data, accessToken) {
   } catch { return false }
 }
 
-// Remove one integration's credentials
 export async function deleteOrgCredential(orgId, service, accessToken) {
   const cfg = getConfig()
   if (!cfg) return false

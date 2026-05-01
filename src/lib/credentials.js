@@ -5,12 +5,7 @@
 // held in module-level memory during a session and persisted
 // to Supabase org_credentials — never in localStorage.
 //
-// The Supabase project URL and anon key are the ONLY values
-// stored in localStorage, because they are public by design
-// (Supabase's anon key is meant to be client-visible; RLS
-// policies protect all data) and are needed before login.
-//
-// Public API (unchanged from before — all callers still work):
+// Public API:
 //   getCredentials(service)          — synchronous, from memory
 //   saveCredentials(service, data)   — saves to memory + cloud
 //   clearCredentials(service)        — removes from memory + cloud
@@ -26,26 +21,16 @@ import {
 } from './supabase.js'
 
 // ── Module-level session state ────────────────────────────────────────────────
-// Set by initCredentials() immediately after login. Cleared on logout.
 
-let _store = {}         // { shopify: {...}, klaviyo: {...}, ... }
+let _store = {}
 let _orgId = null
 let _accessToken = null
 
-const SUPABASE_LS_KEY = 'maxd_cred_supabase'  // localStorage key for Supabase config only
-
-// Called by auth.jsx after a successful login to hydrate the store
-// with credentials loaded from Supabase org_credentials.
+// Called by auth.jsx after a successful login
 export function initCredentials(orgId, accessToken, cloudCreds = {}) {
   _orgId = orgId
   _accessToken = accessToken
   _store = { ...cloudCreds }
-
-  // Always merge in the Supabase config from localStorage (it lives there by design)
-  try {
-    const raw = localStorage.getItem(SUPABASE_LS_KEY)
-    if (raw) _store['supabase'] = JSON.parse(raw)
-  } catch {}
 }
 
 // Called by auth.jsx on logout
@@ -59,28 +44,11 @@ export function clearCredentialStore() {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export function getCredentials(service) {
-  if (service === 'supabase') {
-    // Always read Supabase config from memory (hydrated from localStorage on init)
-    // or fall back to localStorage directly (needed before login)
-    if (_store.supabase) return _store.supabase
-    try {
-      const raw = localStorage.getItem(SUPABASE_LS_KEY)
-      return raw ? JSON.parse(raw) : null
-    } catch { return null }
-  }
   return _store[service] || null
 }
 
 export function saveCredentials(service, data) {
   _store[service] = data
-
-  if (service === 'supabase') {
-    // Supabase config is intentionally stored in localStorage (public values)
-    localStorage.setItem(SUPABASE_LS_KEY, JSON.stringify(data))
-    return
-  }
-
-  // Everything else: persist to Supabase org_credentials (fire-and-forget)
   if (_orgId && _accessToken) {
     saveOrgCredential(_orgId, service, data, _accessToken).catch(() => {})
   }
@@ -88,12 +56,6 @@ export function saveCredentials(service, data) {
 
 export function clearCredentials(service) {
   delete _store[service]
-
-  if (service === 'supabase') {
-    localStorage.removeItem(SUPABASE_LS_KEY)
-    return
-  }
-
   if (_orgId && _accessToken) {
     deleteOrgCredential(_orgId, service, _accessToken).catch(() => {})
   }
@@ -111,22 +73,6 @@ export function getConnectedCount() {
 
 
 // ── Verification helpers ──────────────────────────────────────────────────────
-
-async function verifyAnthropic(creds) {
-  const key = creds.apiKey?.trim()
-  if (!key) return { ok: false, error: 'API key is required.' }
-  if (!key.startsWith('sk-ant-')) return { ok: false, error: 'Key should start with "sk-ant-". Double-check you copied the full key.' }
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/models', {
-      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    })
-    if (res.status === 401) return { ok: false, error: 'Invalid API key — authentication failed.' }
-    if (res.status === 403) return { ok: false, error: 'API key exists but lacks permission.' }
-    return { ok: true }
-  } catch {
-    return { ok: true, warning: 'Could not verify over the network (CORS), but key format looks correct.' }
-  }
-}
 
 async function verifyNotion(creds) {
   const key = creds.apiKey?.trim()
@@ -179,7 +125,7 @@ function verifyNonEmpty(creds, fields) {
 
 export const INTEGRATIONS = {
 
-  // ── E-Commerce ───────────────────────────────────────────────────────────────
+  // ── E-Commerce ────────────────────────────────────────────────────────────
   shopify: {
     label: 'Shopify',       category: 'ecommerce', color: '#639922',
     desc: 'Orders, products, revenue sync', icon: '🛍', quickLink: true,
@@ -259,7 +205,7 @@ export const INTEGRATIONS = {
     verify: (c) => verifyNonEmpty(c, ['accessToken']),
   },
 
-  // ── Marketing & Email ─────────────────────────────────────────────────────────
+  // ── Marketing & Email ──────────────────────────────────────────────────────
   klaviyo: {
     label: 'Klaviyo',       category: 'marketing', color: '#D4537E',
     desc: 'Email/SMS lists, open rates, campaigns', icon: '📧',
@@ -370,7 +316,7 @@ export const INTEGRATIONS = {
     verify: (c) => verifyNonEmpty(c, ['accessToken', 'adAccountId']),
   },
 
-  // ── Analytics ─────────────────────────────────────────────────────────────────
+  // ── Analytics ─────────────────────────────────────────────────────────────
   googleAnalytics: {
     label: 'Google Analytics', category: 'analytics', color: '#D85A30',
     desc: 'Website traffic, conversions & events', icon: '◈',
@@ -431,7 +377,7 @@ export const INTEGRATIONS = {
     verify: (c) => verifyNonEmpty(c, ['siteId']),
   },
 
-  // ── Social Media ──────────────────────────────────────────────────────────────
+  // ── Social Media ──────────────────────────────────────────────────────────
   instagram: {
     label: 'Instagram',      category: 'social', color: '#E1306C',
     desc: 'Instagram posts, reels, stories & insights', icon: '📸',
@@ -483,42 +429,17 @@ export const INTEGRATIONS = {
     label: 'LinkedIn',        category: 'social', color: '#0A66C2',
     desc: 'LinkedIn company page analytics', icon: '💼',
     fields: [
-      { key: 'accessToken',   label: 'Access Token',    placeholder: 'AQV...',                        type: 'password' },
-      { key: 'organizationId',label: 'Organization ID', placeholder: 'urn:li:organization:12345',     type: 'text'     },
+      { key: 'accessToken',    label: 'Access Token',    placeholder: 'AQV...',                        type: 'password' },
+      { key: 'organizationId', label: 'Organization ID', placeholder: 'urn:li:organization:12345',     type: 'text'     },
     ],
     helpUrl: 'https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow',
     helpText: 'LinkedIn Developer Portal → Your App → Auth → OAuth 2.0 → Request Access Token',
     verify: (c) => verifyNonEmpty(c, ['accessToken']),
   },
 
-  // ── AI & Automation ───────────────────────────────────────────────────────────
-  anthropic: {
-    label: 'Anthropic (Claude)', category: 'ai', color: '#378ADD',
-    desc: 'AI content generation in AI Studio', icon: '✦',
-    fields: [
-      { key: 'apiKey', label: 'API Key', placeholder: 'sk-ant-...', type: 'password' },
-    ],
-    helpUrl: 'https://console.anthropic.com/settings/keys',
-    helpText: 'console.anthropic.com → API Keys → Create Key',
-    verify: verifyAnthropic,
-  },
-  openai: {
-    label: 'OpenAI',          category: 'ai', color: '#10A37F',
-    desc: 'GPT models for content & automation', icon: '◎',
-    fields: [
-      { key: 'apiKey', label: 'API Key', placeholder: 'sk-...', type: 'password' },
-    ],
-    helpUrl: 'https://platform.openai.com/api-keys',
-    helpText: 'platform.openai.com → API keys → Create new secret key',
-    verify: (c) => {
-      const key = c.apiKey?.trim()
-      if (!key) return { ok: false, error: 'API Key is required.' }
-      if (!key.startsWith('sk-')) return { ok: false, error: 'OpenAI key should start with "sk-".' }
-      return { ok: true }
-    },
-  },
+  // ── Automation ────────────────────────────────────────────────────────────
   make: {
-    label: 'Make',            category: 'ai', color: '#7F77DD',
+    label: 'Make',            category: 'automation', color: '#7F77DD',
     desc: 'Automation webhooks for content & digests', icon: '⟁',
     fields: [
       { key: 'contentWebhook', label: 'Content Webhook URL', placeholder: 'https://hook.eu1.make.com/...', type: 'text' },
@@ -529,7 +450,7 @@ export const INTEGRATIONS = {
     verify: (c) => verifyUrl(c, ['contentWebhook', 'digestWebhook']),
   },
   zapier: {
-    label: 'Zapier',          category: 'ai', color: '#FF4A00',
+    label: 'Zapier',          category: 'automation', color: '#FF4A00',
     desc: 'Zapier webhook automations', icon: '⚡',
     fields: [
       { key: 'webhookUrl', label: 'Webhook URL', placeholder: 'https://hooks.zapier.com/hooks/catch/...', type: 'text' },
@@ -539,18 +460,18 @@ export const INTEGRATIONS = {
     verify: (c) => verifyUrl(c, ['webhookUrl']),
   },
   n8n: {
-    label: 'n8n',             category: 'ai', color: '#EA4B71',
+    label: 'n8n',             category: 'automation', color: '#EA4B71',
     desc: 'Self-hosted workflow automation', icon: '🔄',
     fields: [
-      { key: 'webhookUrl', label: 'Webhook URL',          placeholder: 'https://your-n8n.com/webhook/...', type: 'text'     },
-      { key: 'apiKey',     label: 'API Key (optional)',   placeholder: 'xxxxxxxxxx',                       type: 'password' },
+      { key: 'webhookUrl', label: 'Webhook URL',        placeholder: 'https://your-n8n.com/webhook/...', type: 'text'     },
+      { key: 'apiKey',     label: 'API Key (optional)', placeholder: 'xxxxxxxxxx',                       type: 'password' },
     ],
     helpUrl: 'https://docs.n8n.io/integrations/core-nodes/n8n-nodes-base.webhook/',
     helpText: 'n8n → Workflows → Add Webhook node → Copy production URL',
     verify: (c) => verifyUrl(c, ['webhookUrl']),
   },
 
-  // ── Workspace & Calendar ──────────────────────────────────────────────────────
+  // ── Workspace & Calendar ──────────────────────────────────────────────────
   notion: {
     label: 'Notion',          category: 'workspace', color: '#1A1A1A',
     desc: 'Sync content calendar & scripts from Notion', icon: '◻',
@@ -626,22 +547,18 @@ export const INTEGRATIONS = {
       return { ok: true }
     },
   },
-
-  // ── Cloud Sync ────────────────────────────────────────────────────────────────
-  supabase: {
-    label: 'Supabase',
-    category: 'sync',
-    color: '#3ECF8E',
+  openai: {
+    label: 'OpenAI',          category: 'workspace', color: '#10A37F',
+    desc: 'GPT models for content & automation', icon: '◎',
     fields: [
-      { key: 'projectUrl', label: 'Project URL',     placeholder: 'https://xxxxxxxxxxxx.supabase.co',         type: 'text'     },
-      { key: 'anonKey',    label: 'Anon Public Key', placeholder: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', type: 'password' },
+      { key: 'apiKey', label: 'API Key', placeholder: 'sk-...', type: 'password' },
     ],
-    helpText: 'Found in your Supabase project → Settings → API. The anon key is a public value — enabling Supabase stores all your data and credentials securely in the cloud.',
-    helpUrl: 'https://supabase.com/dashboard',
+    helpUrl: 'https://platform.openai.com/api-keys',
+    helpText: 'platform.openai.com → API keys → Create new secret key',
     verify: (c) => {
-      if (!c.projectUrl?.trim()) return { ok: false, error: 'Project URL is required.' }
-      if (!c.projectUrl.includes('supabase.co')) return { ok: false, error: 'URL should end with .supabase.co' }
-      if (!c.anonKey?.trim()) return { ok: false, error: 'Anon public key is required.' }
+      const key = c.apiKey?.trim()
+      if (!key) return { ok: false, error: 'API Key is required.' }
+      if (!key.startsWith('sk-')) return { ok: false, error: 'OpenAI key should start with "sk-".' }
       return { ok: true }
     },
   },
@@ -651,13 +568,12 @@ export const INTEGRATIONS = {
 // ── Category metadata ─────────────────────────────────────────────────────────
 
 export const INTEGRATION_CATEGORIES = {
-  sync:      { label: 'Cloud Sync',          icon: '☁️'  },
-  ecommerce: { label: 'E-Commerce',           icon: '🛍'  },
-  marketing: { label: 'Marketing & Email',    icon: '📣'  },
-  analytics: { label: 'Analytics',            icon: '📊'  },
-  social:    { label: 'Social Media',         icon: '📱'  },
-  ai:        { label: 'AI & Automation',      icon: '✦'   },
-  workspace: { label: 'Workspace & Calendar', icon: '🗂'  },
+  ecommerce:  { label: 'E-Commerce',           icon: '🛍'  },
+  marketing:  { label: 'Marketing & Email',    icon: '📣'  },
+  analytics:  { label: 'Analytics',            icon: '📊'  },
+  social:     { label: 'Social Media',         icon: '📱'  },
+  automation: { label: 'Automation',           icon: '⚡'  },
+  workspace:  { label: 'Workspace & Tools',    icon: '🗂'  },
 }
 
 
