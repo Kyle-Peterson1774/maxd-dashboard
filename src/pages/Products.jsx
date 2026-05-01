@@ -106,7 +106,7 @@ function ProductCard({ product, onSelect }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{product.name || 'Untitled Product'}</div>
-          <div style={{ fontSize: 12, color: 'var(--gray-400)' }}>{product.variant || 'No variant'}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{product.variant || 'No variant'}</div>
         </div>
         <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', background: sm.bg, color: sm.text, whiteSpace: 'nowrap' }}>
           {sm.label}
@@ -114,12 +114,12 @@ function ProductCard({ product, onSelect }) {
       </div>
 
       {product.description && (
-        <div style={{ fontSize: 12, color: 'var(--gray-400)', marginBottom: 10, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
           {product.description}
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--gray-500)' }}>
+      <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--text-muted)' }}>
         {product.price && <span>💰 ${product.price}</span>}
         {product.sku && <span>SKU: {product.sku}</span>}
         <span>✦ {product.talkingPoints?.length || 0} talking points</span>
@@ -148,7 +148,7 @@ function ListEditor({ items, onChange, placeholder, addLabel }) {
           />
           <button
             onClick={() => removeItem(idx)}
-            style={{ background: 'none', border: 'none', color: 'var(--gray-600)', cursor: 'pointer', fontSize: 14, padding: '2px 4px', flexShrink: 0 }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, padding: '2px 4px', flexShrink: 0 }}
           >✕</button>
         </div>
       ))}
@@ -173,7 +173,7 @@ function IngredientEditor({ ingredients, onChange }) {
       {ingredients.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 1fr 28px', gap: 4, marginBottom: 6 }}>
           {['Ingredient', 'Amount', 'Note', ''].map((h, i) => (
-            <div key={i} style={{ fontSize: 10, color: 'var(--gray-500)', padding: '0 4px' }}>{h}</div>
+            <div key={i} style={{ fontSize: 10, color: 'var(--text-muted)', padding: '0 4px' }}>{h}</div>
           ))}
         </div>
       )}
@@ -190,7 +190,7 @@ function IngredientEditor({ ingredients, onChange }) {
           ))}
           <button
             onClick={() => removeRow(idx)}
-            style={{ background: 'none', border: 'none', color: 'var(--gray-600)', cursor: 'pointer', fontSize: 14 }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14 }}
           >✕</button>
         </div>
       ))}
@@ -235,9 +235,7 @@ function ProductEditor({ product, onSave, onBack, onDelete }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1.5rem' }}>
-        <button onClick={onBack} style={{ background: 'var(--surface-3)', border: '1px solid var(--border-mid)', borderRadius: 8, color: 'var(--text-secondary)', padding: '7px 14px', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-          ← Back
-        </button>
+        <button onClick={onBack} className="btn btn-secondary">← Back</button>
         <input
           value={draft.name}
           onChange={e => set('name', e.target.value)}
@@ -249,14 +247,9 @@ function ProductEditor({ product, onSave, onBack, onDelete }) {
             {sm.label}
           </span>
           {onDelete && (
-            <button onClick={onDelete} style={{ background: 'transparent', border: '1px solid var(--border-mid)', borderRadius: 8, color: 'var(--text-muted)', padding: '7px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-              Delete
-            </button>
+            <button onClick={onDelete} className="btn btn-ghost">Delete</button>
           )}
-          <button
-            onClick={() => onSave({ ...draft, updatedAt: new Date().toISOString() })}
-            style={{ background: 'var(--red)', border: 'none', borderRadius: 8, color: 'var(--white)', padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >
+          <button onClick={() => onSave({ ...draft, updatedAt: new Date().toISOString() })} className="btn btn-primary">
             Save
           </button>
         </div>
@@ -268,7 +261,7 @@ function ProductEditor({ product, onSave, onBack, onDelete }) {
 
           {/* Description */}
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Description</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Description</div>
             <textarea
               value={draft.description}
               onChange={e => set('description', e.target.value)}
@@ -280,7 +273,7 @@ function ProductEditor({ product, onSave, onBack, onDelete }) {
 
           {/* Benefits */}
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Benefits</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Benefits</div>
             <ListEditor
               items={draft.benefits}
               onChange={v => set('benefits', v)}
@@ -291,8 +284,8 @@ function ProductEditor({ product, onSave, onBack, onDelete }) {
 
           {/* Talking Points */}
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Talking Points</div>
-            <div style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 10 }}>Used in scripts, ads, and content to keep messaging consistent.</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Talking Points</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>Used in scripts, ads, and content to keep messaging consistent.</div>
             <ListEditor
               items={draft.talkingPoints}
               onChange={v => set('talkingPoints', v)}
@@ -303,7 +296,7 @@ function ProductEditor({ product, onSave, onBack, onDelete }) {
 
           {/* Ingredients */}
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Supplement Facts</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Supplement Facts</div>
             <IngredientEditor
               ingredients={draft.ingredients}
               onChange={v => set('ingredients', v)}
@@ -314,37 +307,37 @@ function ProductEditor({ product, onSave, onBack, onDelete }) {
         {/* Sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Product Info</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Product Info</div>
 
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>VARIANT / FLAVOR</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>VARIANT / FLAVOR</label>
             <input value={draft.variant} onChange={e => set('variant', e.target.value)} placeholder="e.g. Mixed Berry" style={{ ...fieldStyle, marginBottom: 10 }} />
 
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>SKU</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>SKU</label>
             <input value={draft.sku} onChange={e => set('sku', e.target.value)} placeholder="e.g. MAXD-CG-001" style={{ ...fieldStyle, marginBottom: 10 }} />
 
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>STATUS</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>STATUS</label>
             <select value={draft.status} onChange={e => set('status', e.target.value)} style={{ ...fieldStyle, marginBottom: 10 }}>
               {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
 
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>PRICE (USD)</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>PRICE (USD)</label>
             <input type="number" value={draft.price} onChange={e => set('price', e.target.value)} placeholder="0.00" step="0.01" style={{ ...fieldStyle, marginBottom: 10 }} />
 
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>LAUNCH DATE</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>LAUNCH DATE</label>
             <input type="date" value={draft.launchDate} onChange={e => set('launchDate', e.target.value)} style={{ ...fieldStyle, marginBottom: 10, colorScheme: 'dark' }} />
 
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>NOTION URL</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>NOTION URL</label>
             <input value={draft.notionUrl} onChange={e => set('notionUrl', e.target.value)} placeholder="https://notion.so/…" style={fieldStyle} />
           </div>
 
           {/* Tags */}
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Tags</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Tags</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
               {draft.tags.map((t, i) => (
                 <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-secondary)' }}>
                   {t}
-                  <button onClick={() => set('tags', draft.tags.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--gray-500)', cursor: 'pointer', fontSize: 12, padding: 0 }}>✕</button>
+                  <button onClick={() => set('tags', draft.tags.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, padding: 0 }}>✕</button>
                 </span>
               ))}
             </div>
@@ -362,7 +355,7 @@ function ProductEditor({ product, onSave, onBack, onDelete }) {
 
           {/* Quick stats */}
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Content Summary</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Content Summary</div>
             {[
               ['Benefits',       draft.benefits.length],
               ['Ingredients',    draft.ingredients.length],
@@ -370,7 +363,7 @@ function ProductEditor({ product, onSave, onBack, onDelete }) {
               ['Tags',           draft.tags.length],
             ].map(([label, count]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12 }}>
-                <span style={{ color: 'var(--gray-400)' }}>{label}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{label}</span>
                 <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{count}</span>
               </div>
             ))}
@@ -431,26 +424,24 @@ export default function Products() {
         title="Products"
         subtitle="SKU catalog and product content library"
         actions={
-          <button
-            onClick={() => setSelected(EMPTY_PRODUCT())}
-            style={{ background: 'var(--red)', border: 'none', borderRadius: 8, color: 'var(--white)', padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >
+          <button onClick={() => setSelected(EMPTY_PRODUCT())} className="btn btn-primary">
             + New Product
           </button>
         }
       />
 
       {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+      <div style={{ display: 'flex', background: 'var(--surface-3)', borderRadius: 8, padding: 3, gap: 2, marginBottom: '1.25rem', width: 'fit-content' }}>
         {[['all', 'All'], ['active', 'Active'], ['coming_soon', 'Coming Soon'], ['discontinued', 'Discontinued']].map(([k, label]) => (
           <button
             key={k}
             onClick={() => setFilter(k)}
             style={{
-              background: filter === k ? 'var(--navy)' : 'var(--surface-2)',
-              border: '1px solid ' + (filter === k ? 'var(--navy)' : 'var(--border-mid)'),
-              borderRadius: 8, color: filter === k ? '#fff' : 'var(--text-secondary)',
-              padding: '6px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+              background: filter === k ? 'var(--surface-2)' : 'transparent',
+              border: 'none', borderRadius: 6,
+              color: filter === k ? 'var(--navy)' : 'var(--text-muted)',
+              padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              boxShadow: filter === k ? 'var(--shadow-sm)' : 'none', transition: 'all 0.15s',
               fontFamily: 'var(--font-body)',
             }}
           >
@@ -463,11 +454,8 @@ export default function Products() {
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>📦</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--navy)', marginBottom: 6, fontFamily: 'var(--font-heading)', letterSpacing: '0.04em' }}>No Products Yet</div>
-          <div style={{ fontSize: 13, color: 'var(--gray-400)', marginBottom: 16 }}>Add your SKUs with benefits, ingredients, and talking points to power your scripts and ads.</div>
-          <button
-            onClick={() => setSelected(EMPTY_PRODUCT())}
-            style={{ background: 'var(--red)', border: 'none', borderRadius: 8, color: 'var(--white)', padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>Add your SKUs with benefits, ingredients, and talking points to power your scripts and ads.</div>
+          <button onClick={() => setSelected(EMPTY_PRODUCT())} className="btn btn-primary">
             Add Your First Product
           </button>
         </div>

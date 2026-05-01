@@ -1056,7 +1056,7 @@ export default function Scripts() {
               </button>
             ))}
           </div>
-          <button onClick={handleNew} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', borderRadius: 8, background: 'var(--red)', border: 'none', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+          <button onClick={handleNew} className="btn btn-primary">
             + NEW SCRIPT
           </button>
         </div>
