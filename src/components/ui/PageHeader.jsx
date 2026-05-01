@@ -1,23 +1,37 @@
-export default function PageHeader({ title, subtitle, action, actions, children }) {
-  const rightContent = actions || action
+export default function PageHeader({ title, subtitle, tag, children }) {
   return (
     <div style={{
       display: 'flex',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
-      marginBottom: '1.75rem',
-      paddingBottom: '1.25rem',
+      marginBottom: '2rem',
+      paddingBottom: '1.5rem',
       borderBottom: '1px solid var(--border)',
+      gap: 16,
     }}>
       <div>
+        {tag && (
+          <div style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.12em',
+            fontFamily: 'var(--font-body)',
+            marginBottom: 6,
+          }}>
+            {tag}
+          </div>
+        )}
         <h1 style={{
-          fontSize: 22,
+          fontSize: 21,
           fontWeight: 700,
-          letterSpacing: '0.05em',
-          marginBottom: 3,
+          letterSpacing: '0.06em',
           color: 'var(--navy)',
           fontFamily: 'var(--font-heading)',
           textTransform: 'uppercase',
+          lineHeight: 1.1,
+          marginBottom: subtitle ? 5 : 0,
         }}>
           {title}
         </h1>
@@ -27,14 +41,14 @@ export default function PageHeader({ title, subtitle, action, actions, children 
             fontSize: 12.5,
             fontWeight: 400,
             letterSpacing: '0.01em',
+            lineHeight: 1.5,
           }}>
             {subtitle}
           </p>
         )}
       </div>
-      {(rightContent || children) && (
+      {children && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-          {rightContent}
           {children}
         </div>
       )}

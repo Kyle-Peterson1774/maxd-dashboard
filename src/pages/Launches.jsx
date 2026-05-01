@@ -82,7 +82,7 @@ function daysUntil(str) {
 }
 
 const STATUS_META = {
-  planning: { label: 'Planning',  bg: 'var(--border)', text: 'var(--gray-300)' },
+  planning: { label: 'Planning',  bg: 'var(--surface-3)', text: 'var(--text-muted)' },
   active:   { label: 'Active',    bg: 'var(--amber-bg)',  text: 'var(--amber-text)' },
   complete: { label: 'Complete',  bg: 'var(--green-bg)',  text: 'var(--green-text)' },
 }
@@ -106,7 +106,7 @@ function LaunchCard({ launch, onSelect }) {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{launch.name || 'Untitled Launch'}</div>
-          <div style={{ fontSize: 12, color: 'var(--gray-400)' }}>{launch.product || 'No product'}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{launch.product || 'No product'}</div>
         </div>
         <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', background: sm.bg, color: sm.text, whiteSpace: 'nowrap' }}>
           {sm.label}
@@ -115,7 +115,7 @@ function LaunchCard({ launch, onSelect }) {
 
       {launch.launchDate && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-          <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>🚀 {fmtDate(launch.launchDate)}</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>🚀 {fmtDate(launch.launchDate)}</span>
           {du !== null && (
             <span style={{ fontSize: 11, color: du <= 7 && du >= 0 ? 'var(--red)' : 'var(--gray-500)', fontWeight: 500 }}>
               {du < 0 ? `${Math.abs(du)}d ago` : du === 0 ? '· Today!' : `· ${du}d`}
@@ -129,7 +129,7 @@ function LaunchCard({ launch, onSelect }) {
           <div style={{ height: 5, background: 'var(--border)', borderRadius: 3, overflow: 'hidden', marginBottom: 4 }}>
             <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? '#4ade80' : 'var(--red)', borderRadius: 3 }} />
           </div>
-          <div style={{ fontSize: 11, color: 'var(--gray-500)' }}>{done}/{total} tasks · {pct}% complete</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{done}/{total} tasks · {pct}% complete</div>
         </>
       )}
     </div>
@@ -152,11 +152,11 @@ function ChecklistItem({ item, team, onChange, onDelete }) {
           value={item.text}
           onChange={e => onChange({ ...item, text: e.target.value })}
           placeholder="Task description…"
-          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: item.done ? 'var(--gray-500)' : 'var(--white)', textDecoration: item.done ? 'line-through' : 'none' }}
+          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: item.done ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: item.done ? 'line-through' : 'none' }}
         />
         <button
           onClick={() => setExpanded(x => !x)}
-          style={{ background: 'none', border: 'none', color: 'var(--gray-500)', cursor: 'pointer', fontSize: 11, padding: '2px 4px' }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 11, padding: '2px 4px' }}
         >
           {expanded ? '▲' : '▼'}
         </button>
@@ -168,7 +168,7 @@ function ChecklistItem({ item, team, onChange, onDelete }) {
       {expanded && (
         <div style={{ padding: '0 10px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 0 }}>
           <div>
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>ASSIGNED TO</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>ASSIGNED TO</label>
             <select
               value={item.assignedTo || ''}
               onChange={e => onChange({ ...item, assignedTo: e.target.value })}
@@ -179,7 +179,7 @@ function ChecklistItem({ item, team, onChange, onDelete }) {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>DUE DATE</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>DUE DATE</label>
             <input
               type="date"
               value={item.dueDate || ''}
@@ -238,10 +238,7 @@ function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
     <div>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1.5rem' }}>
-        <button
-          onClick={onBack}
-          style={{ background: 'var(--surface-3)', border: '1px solid var(--border-mid)', borderRadius: 8, color: 'var(--text-secondary)', padding: '7px 14px', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-        >
+        <button onClick={onBack} className="btn btn-secondary">
           ← Back
         </button>
         <div style={{ flex: 1 }}>
@@ -254,17 +251,11 @@ function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {onDelete && (
-            <button
-              onClick={onDelete}
-              style={{ background: 'transparent', border: '1px solid var(--border-mid)', borderRadius: 8, color: 'var(--text-muted)', padding: '7px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-            >
+            <button onClick={onDelete} className="btn btn-ghost">
               Delete
             </button>
           )}
-          <button
-            onClick={handleSave}
-            style={{ background: 'var(--red)', border: 'none', borderRadius: 8, color: 'var(--white)', padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >
+          <button onClick={handleSave} className="btn btn-primary">
             Save
           </button>
         </div>
@@ -278,7 +269,7 @@ function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
             <div className="card" style={{ marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>Overall Progress</span>
-                <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>{done}/{total} tasks · {pct}%</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{done}/{total} tasks · {pct}%</span>
               </div>
               <div style={{ height: 8, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? '#4ade80' : 'var(--red)', borderRadius: 4, transition: 'width 0.3s' }} />
@@ -295,7 +286,7 @@ function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: phaseColors[phase], flexShrink: 0 }} />
                   <div style={{ flex: 1, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{phase}</div>
-                  <div style={{ fontSize: 11, color: 'var(--gray-500)' }}>{phaseDone}/{items.length}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{phaseDone}/{items.length}</div>
                 </div>
                 {items.map(item => (
                   <ChecklistItem
@@ -308,7 +299,7 @@ function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
                 ))}
                 <button
                   onClick={() => addCheckItem(phase)}
-                  style={{ marginTop: 4, background: 'none', border: '1px dashed var(--gray-700)', borderRadius: 8, color: 'var(--gray-500)', padding: '7px 12px', fontSize: 12, cursor: 'pointer', width: '100%', textAlign: 'left' }}
+                  style={{ marginTop: 4, background: 'none', border: '1px dashed var(--gray-700)', borderRadius: 8, color: 'var(--text-muted)', padding: '7px 12px', fontSize: 12, cursor: 'pointer', width: '100%', textAlign: 'left' }}
                 >
                   + Add task to {phase}
                 </button>
@@ -320,9 +311,9 @@ function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
         {/* Details sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Launch Details</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Launch Details</div>
 
-            <label style={{ fontSize: 11, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>PRODUCT</label>
+            <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>PRODUCT</label>
             <input
               value={draft.product}
               onChange={e => set('product', e.target.value)}
@@ -330,7 +321,7 @@ function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
               style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border-mid)', borderRadius: 8, padding: '8px 10px', fontSize: 13, color: 'var(--text-primary)', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
             />
 
-            <label style={{ fontSize: 11, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>STATUS</label>
+            <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>STATUS</label>
             <select
               value={draft.status}
               onChange={e => set('status', e.target.value)}
@@ -341,7 +332,7 @@ function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
               <option value="complete">Complete</option>
             </select>
 
-            <label style={{ fontSize: 11, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>LAUNCH DATE</label>
+            <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>LAUNCH DATE</label>
             <input
               type="date"
               value={draft.launchDate}
@@ -349,7 +340,7 @@ function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
               style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border-mid)', borderRadius: 8, padding: '8px 10px', fontSize: 13, color: 'var(--text-primary)', outline: 'none', marginBottom: 12, boxSizing: 'border-box', colorScheme: 'dark' }}
             />
 
-            <label style={{ fontSize: 11, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>DESCRIPTION</label>
+            <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>DESCRIPTION</label>
             <textarea
               value={draft.description}
               onChange={e => set('description', e.target.value)}
@@ -361,7 +352,7 @@ function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
 
           {/* Task summary by phase */}
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Task Summary</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Task Summary</div>
             {PHASES.map(phase => {
               const items = draft.checklist.filter(c => c.phase === phase)
               const d = items.filter(i => i.done).length
@@ -369,8 +360,8 @@ function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
               return (
                 <div key={phase} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: phaseColors[phase] }} />
-                  <div style={{ flex: 1, fontSize: 12, color: 'var(--gray-300)' }}>{phase}</div>
-                  <div style={{ fontSize: 11, color: 'var(--gray-500)' }}>{d}/{items.length}</div>
+                  <div style={{ flex: 1, fontSize: 12, color: 'var(--text-secondary)' }}>{phase}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{d}/{items.length}</div>
                 </div>
               )
             })}
@@ -438,26 +429,25 @@ export default function Launches() {
         title="Launch Planner"
         subtitle="Plan and track your product launches"
         actions={
-          <button
-            onClick={handleNew}
-            style={{ background: 'var(--red)', border: 'none', borderRadius: 8, color: 'var(--white)', padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >
+          <button onClick={handleNew} className="btn btn-primary">
             + New Launch
           </button>
         }
       />
 
       {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+      <div style={{ display: 'flex', background: 'var(--surface-3)', borderRadius: 8, padding: 3, gap: 2, marginBottom: '1.25rem', width: 'fit-content' }}>
         {['all', 'planning', 'active', 'complete'].map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             style={{
-              background: filter === f ? 'var(--red)' : 'var(--navy-light)',
-              border: '1px solid ' + (filter === f ? 'var(--red)' : 'var(--border)'),
-              borderRadius: 8, color: filter === f ? 'var(--white)' : 'var(--gray-400)',
-              padding: '6px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', textTransform: 'capitalize',
+              background: filter === f ? 'var(--surface-2)' : 'transparent',
+              border: 'none',
+              borderRadius: 6, color: filter === f ? 'var(--navy)' : 'var(--text-muted)',
+              padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              boxShadow: filter === f ? 'var(--shadow-sm)' : 'none', transition: 'all 0.15s',
+              fontFamily: 'var(--font-body)', textTransform: 'capitalize',
             }}
           >
             {f === 'all' ? `All (${launches.length})` : f.charAt(0).toUpperCase() + f.slice(1)}
@@ -468,12 +458,9 @@ export default function Launches() {
       {filtered.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>🚀</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--white)', marginBottom: 6 }}>No launches yet</div>
-          <div style={{ fontSize: 13, color: 'var(--gray-400)', marginBottom: 16 }}>Plan your next product launch with checklists, timelines, and team assignments.</div>
-          <button
-            onClick={handleNew}
-            style={{ background: 'var(--red)', border: 'none', borderRadius: 8, color: 'var(--white)', padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--navy)', marginBottom: 6 }}>No launches yet</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>Plan your next product launch with checklists, timelines, and team assignments.</div>
+          <button onClick={handleNew} className="btn btn-primary">
             Plan Your First Launch
           </button>
         </div>

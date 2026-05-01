@@ -262,17 +262,15 @@ export default function Social() {
   return (
     <div>
       <PageHeader title="Social Growth" subtitle="Instagram · TikTok · YouTube · Facebook">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={handleSync} disabled={syncing} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 'var(--radius)', background: 'var(--surface-2)', border: '1px solid var(--border-mid)', color: syncing ? 'var(--text-muted)' : 'var(--text-secondary)', cursor: syncing ? 'default' : 'pointer', fontWeight: 600 }}>
-            {syncing ? '⟳ Syncing…' : '⟳ Sync Live Followers'}
-          </button>
-          <button onClick={() => setSnapModal({})} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 'var(--radius)', background: 'var(--surface-2)', border: '1px solid var(--border-mid)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}>
-            + Log Followers
-          </button>
-          <button onClick={() => setPostModal({})} style={{ fontSize: 12, padding: '8px 16px', borderRadius: 'var(--radius)', background: 'var(--red)', border: 'none', color: 'var(--white)', cursor: 'pointer', fontWeight: 700, letterSpacing: '0.04em' }}>
-            + Log Post
-          </button>
-        </div>
+        <button onClick={handleSync} disabled={syncing} className="btn btn-secondary" style={{ opacity: syncing ? 0.6 : 1 }}>
+          {syncing ? '⟳ Syncing…' : '⟳ Sync Live'}
+        </button>
+        <button onClick={() => setSnapModal({})} className="btn btn-secondary">
+          + Log Followers
+        </button>
+        <button onClick={() => setPostModal({})} className="btn btn-primary">
+          + Log Post
+        </button>
       </PageHeader>
 
       {syncMsg && (
@@ -309,8 +307,8 @@ export default function Social() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', background: 'var(--surface-3)', borderRadius: 8, padding: 3, gap: 2, marginBottom: '1.25rem', width: 'fit-content' }}>
-        {[{ key: 'overview', label: '📊 Overview' }, { key: 'posts', label: '📋 Post Log' }, { key: 'growth', label: '📈 Growth' }].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{ padding: '7px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600, background: tab === t.key ? 'var(--surface-2)' : 'transparent', border: 'none', cursor: 'pointer', color: tab === t.key ? 'var(--navy)' : 'var(--text-muted)', boxShadow: tab === t.key ? 'var(--shadow-sm)' : 'none', transition: 'all 0.15s' }}>
+        {[{ key: 'overview', label: 'Overview' }, { key: 'posts', label: 'Post Log' }, { key: 'growth', label: 'Growth' }].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{ padding: '6px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600, background: tab === t.key ? 'var(--surface-2)' : 'transparent', border: 'none', cursor: 'pointer', color: tab === t.key ? 'var(--navy)' : 'var(--text-muted)', boxShadow: tab === t.key ? 'var(--shadow-sm)' : 'none', transition: 'all 0.15s', fontFamily: 'var(--font-body)' }}>
             {t.label}
           </button>
         ))}
@@ -407,7 +405,7 @@ export default function Social() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{sorted.length} snapshots logged</div>
-            <button onClick={() => setSnapModal({})} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '1.5px solid var(--border-mid)', background: 'var(--surface-2)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}>+ Log Today's Counts</button>
+            <button onClick={() => setSnapModal({})} className="btn btn-secondary">+ Log Today's Counts</button>
           </div>
           <div className="card" style={{ padding: '1.25rem', marginBottom: '1.25rem' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 16 }}>FOLLOWER GROWTH</div>

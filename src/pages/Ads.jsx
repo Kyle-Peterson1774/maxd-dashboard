@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
+import StatCard from '../components/ui/StatCard.jsx'
 import { getTeam } from '../lib/team.js'
 import { getCredentials } from '../lib/credentials.js'
 import { dbSet, dbGet } from '../lib/db.js'
@@ -87,11 +88,11 @@ const ALL_PLATFORMS  = ['Meta', 'TikTok', 'YouTube', 'Google', 'Pinterest', 'Sna
 const ALL_OBJECTIVES = ['Awareness', 'Traffic', 'Engagement', 'Leads', 'Conversion', 'Retargeting']
 
 const STATUS_META = {
-  draft:    { label: 'Draft',    bg: 'var(--border)', text: 'var(--gray-300)' },
+  draft:    { label: 'Draft',    bg: 'var(--surface-3)', text: 'var(--text-muted)' },
   review:   { label: 'In Review',bg: 'var(--amber-bg)',  text: 'var(--amber-text)' },
   live:     { label: 'Live',     bg: 'var(--green-bg)',  text: 'var(--green-text)' },
   paused:   { label: 'Paused',   bg: '#FDE8EE',          text: 'var(--red)' },
-  complete: { label: 'Complete', bg: 'var(--border)', text: 'var(--gray-500)' },
+  complete: { label: 'Complete', bg: 'var(--surface-3)', text: 'var(--text-muted)' },
 }
 
 // ─── AI copy helper ───────────────────────────────────────────────────────────
@@ -151,7 +152,7 @@ function AdCard({ ad, onSelect }) {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>{ad.name || 'Untitled Campaign'}</div>
-          <div style={{ fontSize: 12, color: 'var(--gray-400)' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             {[ad.platform, ad.objective].filter(Boolean).join(' · ') || 'No platform set'}
           </div>
         </div>
@@ -159,7 +160,7 @@ function AdCard({ ad, onSelect }) {
           {sm.label}
         </span>
       </div>
-      <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--gray-400)' }}>
+      <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--text-muted)' }}>
         {ad.budget && <span>💰 ${ad.budget}/mo</span>}
         <span>📝 {ad.variants?.length || 0} variant{ad.variants?.length !== 1 ? 's' : ''}</span>
         {ad.audience && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>👥 {ad.audience}</span>}
@@ -201,19 +202,20 @@ function VariantEditor({ variant, ad, onChange, onDelete, canDelete }) {
           style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}
         />
         {variant.isControl && (
-          <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: '#1e3a5f', color: '#60a5fa', fontWeight: 700 }}>CONTROL</span>
+          <span className="badge badge-navy" style={{ fontSize: 10 }}>CONTROL</span>
         )}
         <button
           onClick={handleGenerate}
           disabled={generating}
-          style={{ background: generating ? 'var(--border)' : '#1e1e2e', border: '1px solid var(--gray-600)', borderRadius: 7, color: generating ? 'var(--gray-500)' : '#a78bfa', padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: generating ? 'not-allowed' : 'pointer' }}
+          className="btn btn-secondary"
+          style={{ fontSize: 11, padding: '5px 10px', opacity: generating ? 0.6 : 1 }}
         >
           {generating ? '✦ Generating…' : '✦ AI Write'}
         </button>
         {canDelete && (
           <button
             onClick={onDelete}
-            style={{ background: 'none', border: 'none', color: 'var(--gray-600)', cursor: 'pointer', fontSize: 14, padding: '2px 4px' }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, padding: '2px 4px' }}
           >✕</button>
         )}
       </div>
@@ -221,7 +223,7 @@ function VariantEditor({ variant, ad, onChange, onDelete, canDelete }) {
       {error && <div style={{ fontSize: 12, color: '#f87171', marginBottom: 8 }}>{error}</div>}
 
       <div style={{ marginBottom: 10 }}>
-        <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>HOOK (opening line)</label>
+        <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>HOOK (opening line)</label>
         <input
           value={variant.hook}
           onChange={e => onChange({ ...variant, hook: e.target.value })}
@@ -231,7 +233,7 @@ function VariantEditor({ variant, ad, onChange, onDelete, canDelete }) {
       </div>
 
       <div style={{ marginBottom: 10 }}>
-        <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>BODY COPY</label>
+        <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>BODY COPY</label>
         <textarea
           value={variant.body}
           onChange={e => onChange({ ...variant, body: e.target.value })}
@@ -243,7 +245,7 @@ function VariantEditor({ variant, ad, onChange, onDelete, canDelete }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div>
-          <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>CALL TO ACTION</label>
+          <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>CALL TO ACTION</label>
           <input
             value={variant.cta}
             onChange={e => onChange({ ...variant, cta: e.target.value })}
@@ -252,7 +254,7 @@ function VariantEditor({ variant, ad, onChange, onDelete, canDelete }) {
           />
         </div>
         <div>
-          <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>VISUAL NOTES</label>
+          <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>VISUAL NOTES</label>
           <input
             value={variant.visualNotes}
             onChange={e => onChange({ ...variant, visualNotes: e.target.value })}
@@ -306,9 +308,7 @@ function AdEditor({ ad, onSave, onBack, onDelete }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1.5rem' }}>
-        <button onClick={onBack} style={{ background: 'var(--surface-3)', border: '1px solid var(--border-mid)', borderRadius: 8, color: 'var(--text-secondary)', padding: '7px 14px', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-          ← Back
-        </button>
+        <button onClick={onBack} className="btn btn-secondary">← Back</button>
         <input
           value={draft.name}
           onChange={e => set('name', e.target.value)}
@@ -317,14 +317,9 @@ function AdEditor({ ad, onSave, onBack, onDelete }) {
         />
         <div style={{ display: 'flex', gap: 8 }}>
           {onDelete && (
-            <button onClick={onDelete} style={{ background: 'transparent', border: '1px solid var(--border-mid)', borderRadius: 8, color: 'var(--text-muted)', padding: '7px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-              Delete
-            </button>
+            <button onClick={onDelete} className="btn btn-ghost">Delete</button>
           )}
-          <button
-            onClick={() => onSave({ ...draft, updatedAt: new Date().toISOString() })}
-            style={{ background: 'var(--red)', border: 'none', borderRadius: 8, color: 'var(--white)', padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >
+          <button onClick={() => onSave({ ...draft, updatedAt: new Date().toISOString() })} className="btn btn-primary">
             Save
           </button>
         </div>
@@ -333,7 +328,7 @@ function AdEditor({ ad, onSave, onBack, onDelete }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16 }}>
         {/* Variants */}
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
             Ad Variants ({draft.variants.length})
           </div>
           {draft.variants.map(v => (
@@ -348,14 +343,14 @@ function AdEditor({ ad, onSave, onBack, onDelete }) {
           ))}
           <button
             onClick={addVariant}
-            style={{ width: '100%', background: 'none', border: '1px dashed var(--gray-700)', borderRadius: 10, color: 'var(--gray-500)', padding: '10px', fontSize: 13, cursor: 'pointer', marginTop: 4 }}
+            style={{ width: '100%', background: 'none', border: '1px dashed var(--border-strong)', borderRadius: 10, color: 'var(--text-muted)', padding: '10px', fontSize: 13, cursor: 'pointer', marginTop: 4, fontFamily: 'var(--font-body)' }}
           >
             + Add Variant
           </button>
 
           {/* Performance notes */}
           <div className="card" style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
               Performance Notes
             </div>
             <textarea
@@ -371,40 +366,40 @@ function AdEditor({ ad, onSave, onBack, onDelete }) {
         {/* Details */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Campaign Details</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Campaign Details</div>
 
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>PLATFORM</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>PLATFORM</label>
             <select value={draft.platform} onChange={e => set('platform', e.target.value)} style={{ ...fieldStyle, marginBottom: 10 }}>
               <option value="">Select platform…</option>
               {ALL_PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
 
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>OBJECTIVE</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>OBJECTIVE</label>
             <select value={draft.objective} onChange={e => set('objective', e.target.value)} style={{ ...fieldStyle, marginBottom: 10 }}>
               <option value="">Select objective…</option>
               {ALL_OBJECTIVES.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
 
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>STATUS</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>STATUS</label>
             <select value={draft.status} onChange={e => set('status', e.target.value)} style={{ ...fieldStyle, marginBottom: 10 }}>
               {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
 
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>MONTHLY BUDGET ($)</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>MONTHLY BUDGET ($)</label>
             <input type="number" value={draft.budget} onChange={e => set('budget', e.target.value)} placeholder="0" style={{ ...fieldStyle, marginBottom: 10 }} />
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
               <div>
-                <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>START DATE</label>
+                <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>START DATE</label>
                 <input type="date" value={draft.startDate} onChange={e => set('startDate', e.target.value)} style={{ ...fieldStyle, colorScheme: 'dark' }} />
               </div>
               <div>
-                <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>END DATE</label>
+                <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>END DATE</label>
                 <input type="date" value={draft.endDate} onChange={e => set('endDate', e.target.value)} style={{ ...fieldStyle, colorScheme: 'dark' }} />
               </div>
             </div>
 
-            <label style={{ fontSize: 10, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>TARGET AUDIENCE</label>
+            <label style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>TARGET AUDIENCE</label>
             <textarea
               value={draft.audience}
               onChange={e => set('audience', e.target.value)}
@@ -474,10 +469,7 @@ export default function Ads() {
         title="Ad Creative"
         subtitle="Manage campaigns and copy variants"
         actions={
-          <button
-            onClick={() => setSelected(EMPTY_AD())}
-            style={{ background: 'var(--red)', border: 'none', borderRadius: 8, color: 'var(--white)', padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >
+          <button onClick={() => setSelected(EMPTY_AD())} className="btn btn-primary">
             + New Campaign
           </button>
         }
@@ -485,27 +477,14 @@ export default function Ads() {
 
       {/* Quick stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 16 }}>
-        <div className="card">
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Total Campaigns</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--navy)', fontFamily: 'var(--font-heading)' }}>{ads.length}</div>
-        </div>
-        <div className="card">
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Live</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: '#4ade80', fontFamily: 'var(--font-heading)' }}>{live}</div>
-        </div>
-        <div className="card">
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>In Review</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: '#fbbf24', fontFamily: 'var(--font-heading)' }}>{inReview}</div>
-        </div>
-        <div className="card">
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Live Budget</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--navy)', fontFamily: 'var(--font-heading)' }}>${totalBudget.toLocaleString()}</div>
-          <div style={{ fontSize: 10, color: 'var(--gray-500)' }}>per month</div>
-        </div>
+        <StatCard label="Total Campaigns" value={ads.length}                          accent="var(--navy)" />
+        <StatCard label="Live"            value={live}                                accent="var(--green)" />
+        <StatCard label="In Review"       value={inReview}                            accent="var(--amber)" />
+        <StatCard label="Live Budget"     value={`$${totalBudget.toLocaleString()}`} sub="per month" accent="var(--blue)" />
       </div>
 
       {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+      <div style={{ display: 'flex', background: 'var(--surface-3)', borderRadius: 8, padding: 3, gap: 2, marginBottom: '1.25rem', width: 'fit-content' }}>
         {['all', 'draft', 'review', 'live', 'paused', 'complete'].map(f => {
           const count = f === 'all' ? ads.length : ads.filter(a => a.status === f).length
           return (
@@ -513,10 +492,12 @@ export default function Ads() {
               key={f}
               onClick={() => setFilter(f)}
               style={{
-                background: filter === f ? 'var(--navy)' : 'var(--surface-2)',
-                border: '1px solid ' + (filter === f ? 'var(--red)' : 'var(--border)'),
-                borderRadius: 8, color: filter === f ? 'var(--white)' : 'var(--gray-400)',
-                padding: '6px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                background: filter === f ? 'var(--surface-2)' : 'transparent',
+                border: 'none', borderRadius: 6,
+                color: filter === f ? 'var(--navy)' : 'var(--text-muted)',
+                padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                boxShadow: filter === f ? 'var(--shadow-sm)' : 'none', transition: 'all 0.15s',
+                fontFamily: 'var(--font-body)',
               }}
             >
               {f === 'all' ? 'All' : STATUS_META[f]?.label || f} {count > 0 && `(${count})`}
@@ -529,11 +510,8 @@ export default function Ads() {
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>📢</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--navy)', marginBottom: 6 }}>No campaigns yet</div>
-          <div style={{ fontSize: 13, color: 'var(--gray-400)', marginBottom: 16 }}>Create ad campaigns with multiple copy variants and AI-generated copy.</div>
-          <button
-            onClick={() => setSelected(EMPTY_AD())}
-            style={{ background: 'var(--red)', border: 'none', borderRadius: 8, color: 'var(--white)', padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>Create ad campaigns with multiple copy variants and AI-generated copy.</div>
+          <button onClick={() => setSelected(EMPTY_AD())} className="btn btn-primary">
             Create First Campaign
           </button>
         </div>

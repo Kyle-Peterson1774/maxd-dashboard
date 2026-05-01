@@ -920,9 +920,8 @@ export default function Content() {
   return (
     <div>
       <PageHeader title="Content Calendar" subtitle="Plan, schedule and track your content pipeline">
-        <button onClick={() => { setPrefillDate(''); setModal('new') }}
-          style={{ fontSize: 12, padding: '8px 16px', borderRadius: 'var(--radius)', background: 'var(--red)', border: 'none', color: 'var(--white)', cursor: 'pointer', fontWeight: 700, letterSpacing: '0.04em' }}>
-          + ADD CONTENT
+        <button onClick={() => { setPrefillDate(''); setModal('new') }} className="btn btn-primary">
+          + Add Content
         </button>
       </PageHeader>
 

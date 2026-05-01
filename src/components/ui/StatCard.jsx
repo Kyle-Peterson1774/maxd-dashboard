@@ -1,4 +1,4 @@
-export default function StatCard({ label, value, sub, trend, color = 'var(--navy)', accent }) {
+export default function StatCard({ label, value, sub, trend, accent }) {
   const isUp   = trend > 0
   const isDown = trend < 0
 
@@ -8,41 +8,27 @@ export default function StatCard({ label, value, sub, trend, color = 'var(--navy
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
-        borderLeft: accent ? `3px solid ${accent}` : '3px solid transparent',
-        paddingLeft: accent ? 'calc(1.25rem - 2px)' : '1.25rem',
-        position: 'relative',
-        overflow: 'hidden',
+        gap: 6,
+        borderTop: accent ? `2px solid ${accent}` : '2px solid transparent',
+        padding: '1rem 1.1rem',
       }}
     >
-      {/* Faint watermark accent */}
-      {accent && (
-        <div style={{
-          position: 'absolute', top: -8, right: -8,
-          width: 48, height: 48,
-          borderRadius: '50%',
-          background: accent,
-          opacity: 0.06,
-          pointerEvents: 'none',
-        }} />
-      )}
-
       <div style={{
-        fontSize: 10.5,
-        fontWeight: 600,
+        fontSize: 10,
+        fontWeight: 700,
         color: 'var(--text-muted)',
         textTransform: 'uppercase',
-        letterSpacing: '0.08em',
+        letterSpacing: '0.09em',
         fontFamily: 'var(--font-body)',
       }}>
         {label}
       </div>
 
       <div style={{
-        fontSize: 30,
+        fontSize: 28,
         fontWeight: 700,
         fontFamily: 'var(--font-heading)',
-        color: color,
+        color: 'var(--text-primary)',
         letterSpacing: '0.01em',
         lineHeight: 1,
       }}>
@@ -50,14 +36,15 @@ export default function StatCard({ label, value, sub, trend, color = 'var(--navy
       </div>
 
       {(sub || trend !== undefined) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, marginTop: 2 }}>
           {trend !== undefined && (
             <span style={{
-              color: isUp ? 'var(--green)' : isDown ? 'var(--red)' : 'var(--text-muted)',
+              color: isUp ? 'var(--green-text)' : isDown ? 'var(--red)' : 'var(--text-muted)',
               fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
+              background: isUp ? 'var(--green-bg)' : isDown ? '#FDE8EE' : 'transparent',
+              padding: isUp || isDown ? '1px 5px' : 0,
+              borderRadius: 4,
+              fontSize: 10.5,
             }}>
               {isUp ? '↑' : isDown ? '↓' : '—'} {Math.abs(trend)}%
             </span>
