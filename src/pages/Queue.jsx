@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import StatCard from '../components/ui/StatCard.jsx'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 import { dbSet, dbGet } from '../lib/db.js'
 import { getCredentials, isConnected } from '../lib/credentials.js'
 import { useAuth } from '../lib/auth.jsx'
@@ -510,6 +511,16 @@ export default function Queue() {
       {/* Modals */}
       {selectedItem && <ItemModal item={selectedItem} onClose={() => setSelectedItem(null)} onUpdate={(updated) => { updateItem(updated); setSelectedItem(updated) }} onDelete={deleteItem} />}
       {addModal && <AddItemModal onClose={() => setAddModal(false)} onAdd={addItem} />}
+
+      <AgentPanel
+        module="queue"
+        contextData={{
+          totalItems: data.items.length,
+          pending,
+          sent,
+          recentPending: data.items.filter(i => i.status === 'pending').slice(0, 5).map(i => ({ type: i.type, title: i.title || i.caption || i.subject })),
+        }}
+      />
     </>
   )
 }
