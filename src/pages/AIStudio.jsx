@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { useAuth } from '../lib/auth.jsx'
+import { streamChat } from '../lib/agentApi.js'
 
 // User-scoped keys — each team member has their own saved copies and recent list
 function copiesKey(email) { return `ai_copies:${email || 'shared'}` }
@@ -304,6 +305,7 @@ function AgentRunner({ agent }) {
   const [result, setResult] = useState('')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const streamRef = useRef('')
 
   const set = (k, v) => setFields(f => ({ ...f, [k]: v }))
 
@@ -311,11 +313,17 @@ function AgentRunner({ agent }) {
     const missing = agent.fields.filter(f => !fields[f.key]?.trim())
     if (missing.length) { setError(`Fill in: ${missing.map(f => f.label).join(', ')}`); return }
     setRunning(true); setResult(''); setError('')
-    try {
-      const text = await callAI(agent.buildPrompt(fields), 2048)
-      setResult(text)
-    } catch (e) { setError(e.message || 'Something went wrong') }
-    finally { setRunning(false) }
+    streamRef.current = ''
+    await streamChat({
+      messages: [{ role: 'user', content: agent.buildPrompt(fields) }],
+      maxTokens: 2048,
+      onToken: (token) => {
+        streamRef.current += token
+        setResult(streamRef.current)
+      },
+      onDone:  () => setRunning(false),
+      onError: (err) => { setError(err || 'Something went wrong'); setRunning(false) },
+    })
   }
 
   const copy = () => {
@@ -359,10 +367,9 @@ function AgentRunner({ agent }) {
           ))}
         </div>
         {error && <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 6, fontSize: 12, color: '#991b1b' }}>{error}</div>}
-        <button onClick={run} disabled={running || !apiKey} style={{ marginTop: '1rem', width: '100%', padding: '0.6rem', background: agent.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: running || !apiKey ? 'not-allowed' : 'pointer', opacity: running || !apiKey ? 0.6 : 1 }}>
-          {running ? '⏳ Running agent…' : `▶ Run ${agent.name}`}
+        <button onClick={run} disabled={running} style={{ marginTop: '1rem', width: '100%', padding: '0.6rem', background: agent.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: running ? 'not-allowed' : 'pointer', opacity: running ? 0.6 : 1 }}>
+          {running ? '⏳ Generating…' : `▶ Run ${agent.name}`}
         </button>
-        {!apiKey && <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>Connect Anthropic in Settings first</div>}
       </div>
 
       {/* Output panel */}
@@ -376,24 +383,31 @@ function AgentRunner({ agent }) {
             </div>
           </div>
         )}
-        {running && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 350, flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', border: `3px solid ${agent.color}33`, borderTopColor: agent.color, animation: 'spin 0.8s linear infinite' }} />
-            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Agent is working…</div>
+        {running && !result && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 80, gap: '0.75rem' }}>
+            <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${agent.color}33`, borderTopColor: agent.color, animation: 'spin 0.8s linear infinite' }} />
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Starting…</div>
           </div>
         )}
         {result && (
           <>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem', gap: '0.5rem', alignItems: 'center' }}>
+              {running && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)', marginRight: 'auto' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', border: `1.5px solid ${agent.color}55`, borderTopColor: agent.color, animation: 'spin 0.8s linear infinite' }} />
+                  Streaming…
+                </div>
+              )}
               <button onClick={copy} className="btn btn-secondary" style={{ fontSize: 12, padding: '0.3rem 0.75rem' }}>
                 {copied ? '✅ Copied all' : '📋 Copy all'}
               </button>
-              <button onClick={() => setResult('')} className="btn btn-ghost" style={{ fontSize: 12, padding: '0.3rem 0.75rem' }}>
+              <button onClick={() => setResult('')} disabled={running} className="btn btn-ghost" style={{ fontSize: 12, padding: '0.3rem 0.75rem', opacity: running ? 0.4 : 1 }}>
                 Clear
               </button>
             </div>
             <div style={{ lineHeight: 1.6 }}>
               {renderOutput(result)}
+              {running && <span style={{ display: 'inline-block', width: 2, height: 13, background: agent.color, marginLeft: 2, verticalAlign: 'middle', animation: 'agent-blink 0.75s steps(1) infinite' }} />}
             </div>
           </>
         )}
