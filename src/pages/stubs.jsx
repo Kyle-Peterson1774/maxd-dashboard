@@ -18,13 +18,13 @@ function ComingSoon({ title, subtitle, metrics = [] }) {
       )}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', gap: 12, textAlign: 'center' }}>
         <div style={{ fontSize: 40, opacity: 0.2 }}>⚙</div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, color: 'var(--gray-600)', letterSpacing: '0.06em' }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, color: 'var(--text-secondary)', letterSpacing: '0.06em' }}>
           MODULE IN PROGRESS
         </div>
-        <div style={{ fontSize: 13, color: 'var(--gray-400)', maxWidth: 320, lineHeight: 1.7 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 320, lineHeight: 1.7 }}>
           Ask Claude to build out this module with live API connections, charts, and full tracking.
         </div>
-        <div style={{ fontSize: 12, background: 'var(--gray-100)', padding: '8px 16px', borderRadius: 'var(--radius)', color: 'var(--gray-600)', fontFamily: 'var(--font-body)', marginTop: 4 }}>
+        <div style={{ fontSize: 12, background: 'var(--surface-3)', padding: '8px 16px', borderRadius: 'var(--radius)', color: 'var(--text-secondary)', fontFamily: 'var(--font-body)', marginTop: 4 }}>
           "Build me the {title} module for the MAXD dashboard"
         </div>
       </div>
@@ -128,11 +128,11 @@ export function Settings() {
           <div key={item.name} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--navy)', marginBottom: 2 }}>{item.name}</div>
-              <div style={{ fontSize: 11, color: 'var(--gray-400)' }}>{item.desc}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.desc}</div>
             </div>
             <button style={{
               fontSize: 11, padding: '5px 12px', borderRadius: 6,
-              border: `1px solid ${item.color}`, background: 'var(--white)',
+              border: `1px solid ${item.color}`, background: 'var(--surface)',
               color: item.color, cursor: 'pointer', fontWeight: 500,
             }}>
               {item.status}
@@ -149,7 +149,7 @@ export function Unauthorized() {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12, textAlign: 'center' }}>
       <div style={{ fontSize: 40 }}>⊘</div>
       <div style={{ fontFamily: 'var(--font-heading)', fontSize: 20, color: 'var(--navy)', letterSpacing: '0.05em' }}>ACCESS RESTRICTED</div>
-      <div style={{ fontSize: 13, color: 'var(--gray-400)' }}>You don't have permission to view this page.</div>
+      <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>You don't have permission to view this page.</div>
     </div>
   )
 }

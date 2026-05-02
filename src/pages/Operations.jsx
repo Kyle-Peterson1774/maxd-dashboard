@@ -43,8 +43,6 @@ function nid() { return `i_${Date.now()}_${Math.random().toString(36).slice(2,5)
 function money(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
 
 const inp = { display: 'block', width: '100%', marginTop: 4, padding: '0.45rem 0.6rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 14, boxSizing: 'border-box' }
-const btnPrimary = { background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, padding: '0.5rem 1.1rem', fontSize: 14, cursor: 'pointer', fontWeight: 600 }
-const btnGhost = { background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.5rem 1rem', fontSize: 14, cursor: 'pointer' }
 
 const BATCH_COLORS = { planned: '#64748b', 'in-production': '#f59e0b', qc: '#8b5cf6', completed: '#22c55e', 'on-hold': '#ef4444' }
 const ORDER_COLORS = { pending: '#64748b', processing: '#f59e0b', shipped: '#3b82f6', delivered: '#22c55e', cancelled: '#ef4444' }
@@ -90,9 +88,9 @@ function InventoryModal({ item, onClose, onSave, onDelete }) {
           </label>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} style={btnPrimary}>Save</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
-          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} style={{ ...btnGhost, marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
+          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} className="btn btn-primary">Save</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} className="btn btn-ghost" style={{ marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
         </div>
       </div>
     </div>
@@ -145,9 +143,9 @@ function BatchModal({ batch, onClose, onSave, onDelete }) {
           </label>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} style={btnPrimary}>Save</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
-          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} style={{ ...btnGhost, marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
+          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} className="btn btn-primary">Save</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} className="btn btn-ghost" style={{ marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
         </div>
       </div>
     </div>
@@ -204,9 +202,9 @@ function OrderModal({ order, onClose, onSave, onDelete }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} style={btnPrimary}>Save</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
-          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} style={{ ...btnGhost, marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
+          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} className="btn btn-primary">Save</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} className="btn btn-ghost" style={{ marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
         </div>
       </div>
     </div>
@@ -291,10 +289,12 @@ export default function Operations() {
   const sortedOrders = useMemo(() => [...data.orders].sort((a, b) => new Date(b.date) - new Date(a.date)), [data.orders])
 
   const tabStyle = (t) => ({
-    padding: '0.45rem 1rem', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 500,
-    background: tab === t ? 'var(--navy)' : 'transparent',
-    color: tab === t ? '#fff' : 'var(--text-secondary)',
-    border: tab === t ? 'none' : '1px solid var(--border)',
+    padding: '0.4rem 0.9rem', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: tab === t ? 600 : 400,
+    background: tab === t ? 'var(--surface-2)' : 'transparent',
+    color: tab === t ? 'var(--text-primary)' : 'var(--text-secondary)',
+    border: 'none',
+    boxShadow: tab === t ? 'var(--shadow-sm)' : 'none',
+    transition: 'all 0.12s ease',
   })
 
   const addAction = () => {
@@ -306,7 +306,7 @@ export default function Operations() {
   const addLabel = tab === 'inventory' ? 'Add SKU' : tab === 'batches' ? 'Create Batch' : 'Add Order'
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 1100, margin: '0 auto' }}>
+    <>
       <PageHeader title="Operations" subtitle="Inventory, production batches & fulfillment tracking" />
 
       {/* Shopify sync status */}
@@ -364,14 +364,16 @@ export default function Operations() {
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        <button style={tabStyle('inventory')} onClick={() => setTab('inventory')}>Inventory</button>
-        <button style={tabStyle('batches')} onClick={() => setTab('batches')}>Production Batches</button>
-        <button style={tabStyle('orders')} onClick={() => setTab('orders')}>Orders</button>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 3, background: 'var(--surface-3)', padding: 3, borderRadius: 8 }}>
+          <button style={tabStyle('inventory')} onClick={() => setTab('inventory')}>Inventory</button>
+          <button style={tabStyle('batches')} onClick={() => setTab('batches')}>Production Batches</button>
+          <button style={tabStyle('orders')} onClick={() => setTab('orders')}>Orders</button>
+        </div>
         {tab === 'inventory' && (
           <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search SKUs…" style={{ padding: '0.4rem 0.7rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 13, width: 180 }} />
         )}
-        <button onClick={addAction} style={{ marginLeft: 'auto', ...btnPrimary }}>+ {addLabel}</button>
+        <button onClick={addAction} className="btn btn-primary" style={{ marginLeft: 'auto' }}>+ {addLabel}</button>
       </div>
 
       {/* Inventory Tab */}
@@ -471,6 +473,6 @@ export default function Operations() {
       {invModal !== null && <InventoryModal item={Object.keys(invModal).length ? invModal : null} onClose={() => setInvModal(null)} onSave={saveInv} onDelete={deleteInv} />}
       {batchModal !== null && <BatchModal batch={Object.keys(batchModal).length ? batchModal : null} onClose={() => setBatchModal(null)} onSave={saveBatch} onDelete={deleteBatch} />}
       {orderModal !== null && <OrderModal order={Object.keys(orderModal).length ? orderModal : null} onClose={() => setOrderModal(null)} onSave={saveOrder} onDelete={deleteOrder} />}
-    </div>
+    </>
   )
 }

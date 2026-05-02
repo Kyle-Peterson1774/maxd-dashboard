@@ -20,8 +20,8 @@ function StatusBadge({ connected }) {
     <span style={{
       fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
       padding: '3px 8px', borderRadius: 20,
-      background: connected ? '#d1fae5' : 'var(--gray-100)',
-      color:      connected ? '#065f46' : 'var(--gray-500)',
+      background: connected ? '#d1fae5' : 'var(--surface-3)',
+      color:      connected ? '#065f46' : 'var(--text-secondary)',
     }}>
       {connected ? '● CONNECTED' : '○ NOT CONNECTED'}
     </span>
@@ -172,7 +172,7 @@ function ConnectModal({ serviceKey, integration, onClose, onSave }) {
                 {integration.icon}
               </div>
               <div>
-                <div style={{ fontFamily: 'var(--font-heading)', color: 'var(--white)', fontSize: 14, letterSpacing: '0.05em' }}>
+                <div style={{ fontFamily: 'var(--font-heading)', color: '#fff', fontSize: 14, letterSpacing: '0.05em' }}>
                   {integration.label.toUpperCase()}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{integration.desc}</div>
@@ -267,7 +267,7 @@ function ConnectModal({ serviceKey, integration, onClose, onSave }) {
               <button onClick={handleSave} disabled={!canSave || saving} style={{
                 fontSize: 12, padding: '7px 18px', borderRadius: 6,
                 border: 'none', background: canSave && !saving ? integration.color : 'var(--border)',
-                color: 'var(--white)', cursor: canSave && !saving ? 'pointer' : 'default',
+                color: '#fff', cursor: canSave && !saving ? 'pointer' : 'default',
                 fontWeight: 700, letterSpacing: '0.03em', minWidth: 100, transition: 'all 0.15s',
               }}>
                 {saving ? '⟳ Verifying…' : connected ? 'Update' : 'Connect'}
@@ -298,12 +298,12 @@ function IntegrationCard({ serviceKey, integration, onOpen }) {
   return (
     <div className="card" style={{
       display: 'flex', alignItems: 'center', gap: 14,
-      borderLeft: connected ? `3px solid ${integration.color}` : '3px solid var(--gray-100)',
+      borderLeft: connected ? `3px solid ${integration.color}` : '3px solid var(--surface-3)',
       transition: 'border-color 0.2s', padding: '14px 16px',
     }}>
       <div style={{
         width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-        background: connected ? `${integration.color}18` : 'var(--gray-100)',
+        background: connected ? `${integration.color}18` : 'var(--surface-3)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 20, transition: 'background 0.2s',
       }}>
@@ -314,7 +314,7 @@ function IntegrationCard({ serviceKey, integration, onOpen }) {
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)' }}>{integration.label}</span>
           <StatusBadge connected={connected} />
         </div>
-        <div style={{ fontSize: 11, color: 'var(--gray-400)' }}>{integration.desc}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{integration.desc}</div>
       </div>
       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
         {integration.quickLink && connected && (
@@ -325,7 +325,7 @@ function IntegrationCard({ serviceKey, integration, onOpen }) {
               fontSize: 11, padding: '6px 14px', borderRadius: 6,
               border: `1.5px solid ${integration.color}`,
               background: integration.color,
-              color: 'var(--white)', fontWeight: 600,
+              color: '#fff', fontWeight: 600,
               textDecoration: 'none', letterSpacing: '0.04em',
               display: 'flex', alignItems: 'center', gap: 4,
             }}
@@ -337,9 +337,9 @@ function IntegrationCard({ serviceKey, integration, onOpen }) {
           onClick={() => onOpen(serviceKey)}
           style={{
             fontSize: 11, padding: '6px 14px', borderRadius: 6,
-            border: `1.5px solid ${connected ? 'var(--gray-300)' : integration.color}`,
-            background: connected ? 'var(--white)' : integration.color,
-            color: connected ? 'var(--gray-600)' : 'var(--white)',
+            border: `1.5px solid ${connected ? 'var(--border-mid)' : integration.color}`,
+            background: connected ? 'var(--surface)' : integration.color,
+            color: connected ? 'var(--text-secondary)' : 'var(--white)',
             cursor: 'pointer', fontWeight: 600, letterSpacing: '0.04em',
             transition: 'all 0.15s',
           }}
@@ -533,7 +533,7 @@ function RoleModal({ role, onClose, onSave }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ background: '#ffffff', border: '1px solid var(--gray-100)', borderRadius: 14, width: '100%', maxWidth: 500, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden' }}>
+      <div style={{ background: '#ffffff', border: '1px solid var(--surface-3)', borderRadius: 14, width: '100%', maxWidth: 500, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden' }}>
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{isNew ? 'Create Role' : `Edit Role — ${role.name}`}</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
@@ -575,8 +575,8 @@ function RoleModal({ role, onClose, onSave }) {
           ))}
         </div>
         <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button onClick={onClose} style={{ padding: '0.45rem 1rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>Cancel</button>
-          <button onClick={() => name.trim() && onSave({ id: role?.id || Date.now().toString(), name: name.trim(), color, pages })} style={{ padding: '0.45rem 1.25rem', background: 'var(--navy)', border: 'none', borderRadius: 6, fontSize: 13, color: '#fff', cursor: 'pointer', fontWeight: 600, opacity: name.trim() ? 1 : 0.5 }}>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          <button onClick={() => name.trim() && onSave({ id: role?.id || Date.now().toString(), name: name.trim(), color, pages })} className="btn btn-primary" style={{ opacity: name.trim() ? 1 : 0.5 }}>
             {isNew ? 'Create Role' : 'Save Changes'}
           </button>
         </div>
@@ -625,7 +625,7 @@ function MemberAccessModal({ member, onClose, onSave, currentUser, roleTemplates
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ background: '#ffffff', border: '1px solid var(--gray-100)', borderRadius: 14, width: '100%', maxWidth: 540, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden' }}>
+      <div style={{ background: '#ffffff', border: '1px solid var(--surface-3)', borderRadius: 14, width: '100%', maxWidth: 540, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden' }}>
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
             {isNew ? 'Invite Team Member' : `Edit — ${member.name || member.email}`}
@@ -716,9 +716,9 @@ function MemberAccessModal({ member, onClose, onSave, currentUser, roleTemplates
         </div>
 
         <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button onClick={onClose} style={{ padding: '0.45rem 1rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
           {!isYou && (
-            <button onClick={handleSave} disabled={saving} style={{ padding: '0.45rem 1.25rem', background: 'var(--navy)', border: 'none', borderRadius: 6, fontSize: 13, color: '#fff', cursor: saving ? 'wait' : 'pointer', fontWeight: 600, opacity: saving ? 0.7 : 1 }}>
+            <button onClick={handleSave} disabled={saving} className="btn btn-primary" style={{ opacity: saving ? 0.7 : 1 }}>
               {saving ? 'Saving…' : isNew ? 'Send Invite' : 'Save Changes'}
             </button>
           )}
@@ -813,7 +813,7 @@ function AccessControl() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
             {isAdmin && (
-              <button onClick={() => setEditRole(false)} style={{ padding: '0.4rem 0.9rem', background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
+              <button onClick={() => setEditRole(false)} className="btn btn-primary">
                 + Create Role
               </button>
             )}
@@ -850,7 +850,7 @@ function AccessControl() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
             {canManage && (
-              <button onClick={() => setEditMember({})} style={{ padding: '0.4rem 0.9rem', background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
+              <button onClick={() => setEditMember({})} className="btn btn-primary">
                 + Invite
               </button>
             )}
@@ -980,17 +980,17 @@ function PreferencesSection() {
           >
             <div style={{
               width: 40, height: 22, borderRadius: 11,
-              background: prefs[key] ? 'var(--red)' : 'var(--gray-200)',
+              background: prefs[key] ? 'var(--red)' : 'var(--border)',
               position: 'relative', transition: 'background 0.2s',
             }}>
               <div style={{
                 position: 'absolute', top: 3, left: prefs[key] ? 21 : 3,
                 width: 16, height: 16, borderRadius: '50%',
-                background: 'var(--white)', transition: 'left 0.2s',
+                background: '#fff', transition: 'left 0.2s',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
               }} />
             </div>
-            <span style={{ fontSize: 12, color: 'var(--gray-600)' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
               {prefs[key] ? 'Enabled' : 'Disabled'}
             </span>
           </button>
@@ -1001,8 +1001,8 @@ function PreferencesSection() {
             onChange={e => update(key, e.target.value)}
             style={{
               width: '100%', maxWidth: 280, padding: '8px 12px',
-              border: '1.5px solid var(--gray-200)', borderRadius: 'var(--radius)',
-              fontSize: 13, color: 'var(--navy)', background: 'var(--white)',
+              border: '1.5px solid var(--border)', borderRadius: 'var(--radius)',
+              fontSize: 13, color: 'var(--navy)', background: 'var(--surface)',
               outline: 'none',
             }}
           >
@@ -1048,7 +1048,7 @@ function PreferencesSection() {
           style={{
             marginTop: 8, padding: '9px 24px', borderRadius: 'var(--radius)',
             background: saved ? '#059669' : 'var(--navy)', border: 'none',
-            color: 'var(--white)', fontSize: 12, fontWeight: 700,
+            color: '#fff', fontSize: 12, fontWeight: 700,
             letterSpacing: '0.04em', cursor: 'pointer', transition: 'background 0.2s',
           }}
         >
@@ -1111,7 +1111,6 @@ function AboutSection() {
   }
 
   const cardStyle = { background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '1.25rem', marginBottom: '1rem' }
-  const btnStyle = { fontSize: 13, padding: '0.5rem 1rem', borderRadius: 6, cursor: 'pointer', fontWeight: 600, border: '1px solid var(--border)', background: 'var(--surface-3)', color: 'var(--text-primary)' }
 
   return (
     <div style={{ maxWidth: 560 }}>
@@ -1141,10 +1140,10 @@ function AboutSection() {
           Export a backup of all your dashboard data as a JSON file. Import it on any device to restore everything — scripts, content, sales data, finances, and settings.
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <button onClick={exportData} style={{ ...btnStyle, background: 'var(--navy)', color: '#fff', border: 'none' }}>
+          <button onClick={exportData} className="btn btn-primary">
             ⬇ Export Backup
           </button>
-          <label style={{ ...btnStyle, display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+          <label className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
             ⬆ Import Backup
             <input type="file" accept=".json" onChange={importData} style={{ display: 'none' }} />
           </label>
@@ -1209,8 +1208,8 @@ export default function Settings() {
         {/* ── Sidebar ── */}
         <div style={{
           width: 200, flexShrink: 0,
-          background: 'var(--white)', borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--gray-100)',
+          background: 'var(--surface-2)', borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--surface-3)',
           overflow: 'hidden', position: 'sticky', top: 16,
         }}>
           {SECTIONS.map((sec, i) => {
@@ -1222,10 +1221,10 @@ export default function Settings() {
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                   padding: '12px 16px',
-                  background: active ? 'var(--gray-50)' : 'transparent',
+                  background: active ? 'var(--surface-3)' : 'transparent',
                   border: 'none',
                   borderLeft: active ? '3px solid var(--red)' : '3px solid transparent',
-                  borderBottom: i < SECTIONS.length - 1 ? '1px solid var(--gray-50)' : 'none',
+                  borderBottom: i < SECTIONS.length - 1 ? '1px solid var(--surface-3)' : 'none',
                   cursor: 'pointer',
                   textAlign: 'left',
                   transition: 'all 0.15s',
@@ -1234,7 +1233,7 @@ export default function Settings() {
                 <span style={{ fontSize: 14, opacity: active ? 1 : 0.6 }}>{sec.icon}</span>
                 <span style={{
                   fontSize: 12, fontWeight: active ? 700 : 500,
-                  color: active ? 'var(--navy)' : 'var(--gray-500)',
+                  color: active ? 'var(--navy)' : 'var(--text-secondary)',
                   letterSpacing: active ? '0.01em' : '0',
                   transition: 'all 0.15s',
                 }}>
@@ -1243,8 +1242,8 @@ export default function Settings() {
                 {sec.key === 'integrations' && (
                   <span style={{
                     marginLeft: 'auto', fontSize: 10, fontWeight: 700,
-                    background: connectedCount === total ? '#d1fae5' : 'var(--gray-100)',
-                    color: connectedCount === total ? '#065f46' : 'var(--gray-500)',
+                    background: connectedCount === total ? '#d1fae5' : 'var(--surface-3)',
+                    color: connectedCount === total ? '#065f46' : 'var(--text-secondary)',
                     padding: '2px 6px', borderRadius: 10,
                   }}>
                     {connectedCount}/{total}
