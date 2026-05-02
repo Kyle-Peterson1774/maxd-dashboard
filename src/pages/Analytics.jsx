@@ -242,26 +242,11 @@ function EntryModal({ entry, onSave, onClose, onDelete }) {
         {/* Actions */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
           {onDelete && (
-            <button
-              onClick={onDelete}
-              style={{ background: 'transparent', border: '1px solid var(--border-mid)', borderRadius: 8, color: 'var(--text-muted)', padding: '8px 14px', fontSize: 12.5, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-            >
-              Delete
-            </button>
+            <button onClick={onDelete} className="btn btn-ghost">Delete</button>
           )}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <button
-              onClick={onClose}
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--border-mid)', borderRadius: 8, color: 'var(--text-secondary)', padding: '8px 16px', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => onSave(draft)}
-              style={{ background: 'var(--red)', border: 'none', borderRadius: 8, color: '#fff', padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-            >
-              Save
-            </button>
+            <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+            <button onClick={() => onSave(draft)} className="btn btn-primary">Save</button>
           </div>
         </div>
       </div>
@@ -336,18 +321,11 @@ export default function Analytics() {
 
   return (
     <div>
-      <PageHeader
-        title="Analytics"
-        subtitle="Track post performance and engagement across platforms"
-        actions={
-          <button
-            onClick={() => setEditing(EMPTY_ENTRY())}
-            className="btn btn-primary"
-          >
-            + Log Post
-          </button>
-        }
-      />
+      <PageHeader title="Analytics" subtitle="Track post performance and engagement across platforms">
+        <button onClick={() => setEditing(EMPTY_ENTRY())} className="btn btn-primary">
+          + Log Post
+        </button>
+      </PageHeader>
 
       {/* Summary stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 20 }}>
@@ -382,7 +360,7 @@ export default function Analytics() {
 
       {/* Platform filter + sort controls */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', background: 'var(--surface-3)', padding: 3, borderRadius: 8 }}>
           {['all', ...ALL_PLATFORMS].map(p => {
             const count = p === 'all' ? entries.length : entries.filter(e => e.platform === p).length
             if (count === 0 && p !== 'all') return null
@@ -392,15 +370,17 @@ export default function Analytics() {
                 key={p}
                 onClick={() => setPlatform(p)}
                 style={{
-                  background: active ? 'var(--navy)' : 'var(--surface-2)',
-                  border: `1px solid ${active ? 'var(--navy)' : 'var(--border-mid)'}`,
-                  borderRadius: 8,
-                  color: active ? '#fff' : 'var(--text-secondary)',
+                  background: active ? 'var(--surface-2)' : 'transparent',
+                  border: 'none',
+                  borderRadius: 6,
+                  color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
                   padding: '5px 12px',
                   fontSize: 12,
-                  fontWeight: 500,
+                  fontWeight: active ? 600 : 400,
                   cursor: 'pointer',
                   fontFamily: 'var(--font-body)',
+                  boxShadow: active ? 'var(--shadow-sm)' : 'none',
+                  transition: 'all 0.12s ease',
                 }}
               >
                 {p === 'all' ? 'All' : p} <span style={{ opacity: 0.6 }}>({count})</span>

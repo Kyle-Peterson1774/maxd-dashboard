@@ -117,7 +117,7 @@ function LaunchCard({ launch, onSelect }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>🚀 {fmtDate(launch.launchDate)}</span>
           {du !== null && (
-            <span style={{ fontSize: 11, color: du <= 7 && du >= 0 ? 'var(--red)' : 'var(--gray-500)', fontWeight: 500 }}>
+            <span style={{ fontSize: 11, color: du <= 7 && du >= 0 ? 'var(--red)' : 'var(--text-muted)', fontWeight: 500 }}>
               {du < 0 ? `${Math.abs(du)}d ago` : du === 0 ? '· Today!' : `· ${du}d`}
             </span>
           )}
@@ -162,7 +162,7 @@ function ChecklistItem({ item, team, onChange, onDelete }) {
         </button>
         <button
           onClick={onDelete}
-          style={{ background: 'none', border: 'none', color: 'var(--gray-600)', cursor: 'pointer', fontSize: 13, padding: '2px 4px' }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, padding: '2px 4px' }}
         >✕</button>
       </div>
       {expanded && (
@@ -299,7 +299,7 @@ function LaunchEditor({ launch, team, onSave, onBack, onDelete }) {
                 ))}
                 <button
                   onClick={() => addCheckItem(phase)}
-                  style={{ marginTop: 4, background: 'none', border: '1px dashed var(--gray-700)', borderRadius: 8, color: 'var(--text-muted)', padding: '7px 12px', fontSize: 12, cursor: 'pointer', width: '100%', textAlign: 'left' }}
+                  style={{ marginTop: 4, background: 'none', border: '1px dashed var(--border-mid)', borderRadius: 8, color: 'var(--text-muted)', padding: '7px 12px', fontSize: 12, cursor: 'pointer', width: '100%', textAlign: 'left' }}
                 >
                   + Add task to {phase}
                 </button>
