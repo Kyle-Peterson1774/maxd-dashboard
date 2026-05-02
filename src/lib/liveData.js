@@ -225,3 +225,154 @@ export async function fetchLiveFollowerSnapshot() {
   const hasAny = Object.values(snapshot).some((v, i) => i > 0 && v !== null)
   return hasAny ? snapshot : null
 }
+
+// ── Meta Ads (Marketing API) ───────────────────────────────────────────────────
+// Works client-side — Meta Graph API supports CORS with access_token as query param.
+
+export async function fetchMetaAdCampaigns() {
+  const creds = getCredentials('metaAds')
+  if (!creds?.accessToken || !creds?.adAccountId) return null
+  const accountId = creds.adAccountId.startsWith('act_') ? creds.adAccountId : `act_${creds.adAccountId}`
+  const token = creds.accessToken
+  try {
+    const [campaignsRes, insightsRes] = await Promise.all([
+      fetch(`https://graph.facebook.com/v18.0/${accountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,start_time,stop_time&limit=50&access_token=${token}`),
+      fetch(`https://graph.facebook.com/v18.0/${accountId}/insights?fields=campaign_id,spend,impressions,clicks,actions&level=campaign&date_preset=last_30d&access_token=${token}`),
+    ])
+    if (!campaignsRes.ok) return null
+    const campaigns = await campaignsRes.json()
+    if (campaigns.error) return null
+
+    let insightsMap = {}
+    if (insightsRes.ok) {
+      const insights = await insightsRes.json()
+      if (!insights.error) {
+        for (const row of (insights.data || [])) {
+          insightsMap[row.campaign_id] = row
+        }
+      }
+    }
+
+    return (campaigns.data || []).map(c => {
+      const ins = insightsMap[c.id] || {}
+      const purchases = (ins.actions || []).find(a => a.action_type === 'purchase')
+      return {
+        id: `meta_${c.id}`,
+        name: c.name,
+        platform: 'meta',
+        status: c.status === 'ACTIVE' ? 'active' : c.status === 'PAUSED' ? 'paused' : 'completed',
+        startDate: c.start_time?.slice(0, 10) || '',
+        endDate:   c.stop_time?.slice(0, 10)  || '',
+        budget: Math.round(parseFloat(c.daily_budget || c.lifetime_budget || 0) / 100),
+        spend:       parseFloat(ins.spend || 0),
+        revenue:     parseFloat(purchases?.value || 0),
+        clicks:      parseInt(ins.clicks || 0),
+        impressions: parseInt(ins.impressions || 0),
+        conversions: parseInt(purchases?.value || 0),
+        _source: 'meta',
+      }
+    })
+  } catch { return null }
+}
+
+// ── Klaviyo (via proxy) ────────────────────────────────────────────────────────
+
+export async function fetchKlaviyoCampaigns() {
+  const creds = getCredentials('klaviyo')
+  if (!creds?.apiKey) return null
+  try {
+    const res = await fetch('/api/klaviyo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: creds.apiKey,
+        endpoint: `campaigns/?filter=equals(messages.channel,'email')&sort=-created_at&page[size]=50`,
+      }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    if (data.errors) return null
+    return data.data ?? null
+  } catch { return null }
+}
+
+/**
+ * Maps Klaviyo campaign objects → Marketing page email format.
+ * Note: open/click rates require additional metrics calls — set to 0 initially.
+ */
+export function klaviyoCampaignsToMarketing(campaigns = []) {
+  return campaigns
+    .filter(c => ['sent', 'scheduled', 'sending'].includes(c.attributes?.status))
+    .map(c => {
+      const attr = c.attributes || {}
+      const sendTime = attr.send_time || attr.scheduled_at || attr.created_at || ''
+      return {
+        id: `kl_${c.id}`,
+        date: sendTime.slice(0, 10),
+        subject: attr.name || 'Klaviyo Email',
+        platform: 'klaviyo',
+        sent: 0,       // requires additional metrics call
+        opened: 0,
+        clicked: 0,
+        revenue: 0,
+        _source: 'klaviyo',
+      }
+    })
+}
+
+// ── Instagram media → Analytics entries ───────────────────────────────────────
+
+/**
+ * Transforms Instagram media objects into Analytics-compatible entry objects.
+ * Call fetchInstagramMedia() first, then pass results here.
+ */
+export function instagramMediaToAnalytics(media = []) {
+  return media.map(m => {
+    const caption = m.caption || ''
+    const firstLine = caption.split('\n')[0].replace(/#\w+/g, '').trim().slice(0, 100)
+    const postType = m.media_type === 'CAROUSEL_ALBUM' ? 'Carousel'
+      : m.media_type === 'VIDEO' ? 'Reel'
+      : m.media_type === 'IMAGE' ? 'Post'
+      : 'Post'
+    return {
+      id: `ig_${m.id}`,
+      title:    firstLine || 'Instagram post',
+      platform: 'Instagram',
+      postType,
+      postDate: m.timestamp?.slice(0, 10) || '',
+      postUrl:  m.permalink || '',
+      views:    m.video_view_count ?? '',
+      likes:    m.like_count ?? '',
+      comments: m.comments_count ?? '',
+      shares:   '',
+      saves:    '',
+      reach:    '',
+      clicks:   '',
+      notes:    caption.length > 100 ? caption.slice(0, 200) + '…' : caption,
+      createdAt: new Date().toISOString(),
+      _source: 'instagram',
+    }
+  })
+}
+
+/**
+ * Transforms YouTube video objects → Analytics-compatible entry objects.
+ * Call fetchYouTubeVideos() first, then pass results here.
+ */
+export function youtubeVideosToAnalytics(videos = []) {
+  return videos.map(v => {
+    const snippet = v.snippet || {}
+    return {
+      id: `yt_${v.id?.videoId || v.id}`,
+      title:    snippet.title || 'YouTube video',
+      platform: 'YouTube',
+      postType: 'Video',
+      postDate: snippet.publishedAt?.slice(0, 10) || '',
+      postUrl:  `https://youtube.com/watch?v=${v.id?.videoId || v.id}`,
+      views: '', likes: '', comments: '', shares: '', saves: '', reach: '', clicks: '',
+      notes: snippet.description?.slice(0, 200) || '',
+      createdAt: new Date().toISOString(),
+      _source: 'youtube',
+    }
+  })
+}

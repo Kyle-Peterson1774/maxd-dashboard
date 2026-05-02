@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { dbSet, dbGet } from '../lib/db.js'
 import AgentPanel from '../components/ui/AgentPanel.jsx'
+import { fetchMetaAdCampaigns, fetchKlaviyoCampaigns, klaviyoCampaignsToMarketing } from '../lib/liveData.js'
+import { isConnected } from '../lib/credentials.js'
 
 const STORE_KEY = 'maxd_marketing'
 
@@ -168,11 +170,45 @@ export default function Marketing() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [campaignModal, setCampaignModal] = useState(null)
   const [emailModal, setEmailModal] = useState(null)
+  const [syncStatus, setSyncStatus] = useState(null) // 'ok' | 'error' | null
+  const [syncing, setSyncing] = useState(false)
 
   // Refresh from Supabase when page opens
   useEffect(() => {
     dbGet(STORE_KEY).then(d => { if (d) setData(d) })
   }, [])
+
+  // Auto-sync from Meta Ads + Klaviyo when connected
+  useEffect(() => {
+    const hasLive = isConnected('metaAds') || isConnected('klaviyo')
+    if (!hasLive) return
+    setSyncing(true)
+    Promise.all([
+      isConnected('metaAds') ? fetchMetaAdCampaigns() : Promise.resolve(null),
+      isConnected('klaviyo') ? fetchKlaviyoCampaigns() : Promise.resolve(null),
+    ]).then(([metaCampaigns, klaviyoData]) => {
+      setSyncing(false)
+      if (!metaCampaigns && !klaviyoData) { setSyncStatus('error'); return }
+      setSyncStatus('ok')
+      setData(prev => {
+        const existingIds = new Set(prev.campaigns.map(c => c.id).concat(prev.emails.map(e => e.id)))
+        const newCampaigns = metaCampaigns
+          ? metaCampaigns.filter(c => !existingIds.has(c.id))
+          : []
+        const newEmails = klaviyoData
+          ? klaviyoCampaignsToMarketing(klaviyoData).filter(e => !existingIds.has(e.id))
+          : []
+        if (newCampaigns.length === 0 && newEmails.length === 0) return prev
+        const next = {
+          ...prev,
+          campaigns: [...newCampaigns, ...prev.campaigns],
+          emails: [...newEmails, ...prev.emails],
+        }
+        save(next)
+        return next
+      })
+    })
+  }, []) // eslint-disable-line
 
   const persist = (next) => { setData(next); save(next) }
 
@@ -245,6 +281,14 @@ export default function Marketing() {
   return (
     <>
       <PageHeader title="Marketing" subtitle="Ad campaigns, email performance & spend tracking" />
+
+      {/* Live sync status */}
+      {(syncing || syncStatus) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0.6rem 1rem', borderRadius: 8, marginBottom: '1rem', fontSize: 13, background: syncing ? 'var(--surface-2)' : syncStatus === 'ok' ? '#22c55e15' : '#ef444415', border: `1px solid ${syncing ? 'var(--border)' : syncStatus === 'ok' ? '#22c55e40' : '#ef444440'}`, color: syncing ? 'var(--text-secondary)' : syncStatus === 'ok' ? '#22c55e' : '#ef4444' }}>
+          {syncing && <div style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid #94a3b855', borderTopColor: '#94a3b8', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />}
+          {syncing ? 'Syncing Meta Ads & Klaviyo…' : syncStatus === 'ok' ? '✓ Live data synced' : '⚠ Could not sync live data — check your API keys in Settings'}
+        </div>
+      )}
 
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>

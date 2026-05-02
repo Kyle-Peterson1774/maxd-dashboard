@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import AgentPanel from '../components/ui/AgentPanel.jsx'
 import PageHeader from '../components/ui/PageHeader.jsx'
+import { fetchInstagramMedia, fetchYouTubeVideos, instagramMediaToAnalytics, youtubeVideosToAnalytics } from '../lib/liveData.js'
+import { isConnected } from '../lib/credentials.js'
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 const STORE_KEY = 'maxd_analytics'
@@ -257,13 +259,41 @@ function EntryModal({ entry, onSave, onClose, onDelete }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Analytics() {
-  const [entries,  setEntries]  = useState([])
-  const [editing,  setEditing]  = useState(null)
-  const [platform, setPlatform] = useState('all')
-  const [sortBy,   setSortBy]   = useState('postDate')
-  const [sortDir,  setSortDir]  = useState('desc')
+  const [entries,    setEntries]    = useState([])
+  const [editing,    setEditing]    = useState(null)
+  const [platform,   setPlatform]   = useState('all')
+  const [sortBy,     setSortBy]     = useState('postDate')
+  const [sortDir,    setSortDir]    = useState('desc')
+  const [importing,  setImporting]  = useState(false)
+  const [importMsg,  setImportMsg]  = useState(null)
 
   useEffect(() => { setEntries(initEntries()) }, [])
+
+  async function handleImportFromSocial() {
+    setImporting(true)
+    setImportMsg(null)
+    const [igMedia, ytVideos] = await Promise.all([
+      isConnected('instagram') ? fetchInstagramMedia(50) : Promise.resolve(null),
+      isConnected('youtube')   ? fetchYouTubeVideos(25)  : Promise.resolve(null),
+    ])
+    const igEntries = igMedia ? instagramMediaToAnalytics(igMedia) : []
+    const ytEntries = ytVideos ? youtubeVideosToAnalytics(ytVideos) : []
+    const imported = [...igEntries, ...ytEntries]
+    if (imported.length === 0) {
+      setImportMsg('No posts found — connect Instagram or YouTube in Settings')
+      setImporting(false)
+      return
+    }
+    setEntries(prev => {
+      const existingIds = new Set(prev.map(e => e.id))
+      const newOnes = imported.filter(e => !existingIds.has(e.id))
+      const next = [...newOnes, ...prev]
+      saveEntries(next)
+      setImportMsg(`Imported ${newOnes.length} post${newOnes.length !== 1 ? 's' : ''}`)
+      return next
+    })
+    setImporting(false)
+  }
 
   function handleSave(updated) {
     const next = entries.some(e => e.id === updated.id)
@@ -323,10 +353,22 @@ export default function Analytics() {
   return (
     <div>
       <PageHeader title="Analytics" subtitle="Track post performance and engagement across platforms">
+        {(isConnected('instagram') || isConnected('youtube')) && (
+          <button onClick={handleImportFromSocial} disabled={importing} className="btn" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)', marginRight: 8 }}>
+            {importing ? 'Importing…' : '↓ Import Posts'}
+          </button>
+        )}
         <button onClick={() => setEditing(EMPTY_ENTRY())} className="btn btn-primary">
           + Log Post
         </button>
       </PageHeader>
+
+      {importMsg && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0.6rem 1rem', borderRadius: 8, marginBottom: '1rem', fontSize: 13, background: importMsg.startsWith('Imported') ? '#22c55e15' : '#f59e0b15', border: `1px solid ${importMsg.startsWith('Imported') ? '#22c55e40' : '#f59e0b40'}`, color: importMsg.startsWith('Imported') ? '#22c55e' : '#f59e0b' }}>
+          {importMsg.startsWith('Imported') ? '✓' : '⚠'} {importMsg}
+          <button onClick={() => setImportMsg(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: 16, lineHeight: 1 }}>×</button>
+        </div>
+      )}
 
       {/* Summary stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 20 }}>
