@@ -58,6 +58,30 @@ function parseRecoveryToken() {
 }
 
 
+// ── Shared login UI — defined outside LoginPage so refs stay stable ────────────
+
+const LogoMark = ({ size = 30 }) => (
+  <svg width={size} height={Math.round(size * 0.73)} viewBox="0 0 24 18" fill="none">
+    <path d="M0 18 L8 2 L12 9 L14 6 L24 18Z" fill="#E21B4D" opacity="0.95"/>
+    <path d="M12 9 L14 6 L24 18 L12 18Z" fill="#E21B4D" opacity="0.42"/>
+  </svg>
+)
+
+const INP_STYLE  = { display: 'block', width: '100%', padding: '0.7rem 0.875rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, color: '#fff', fontSize: 14, boxSizing: 'border-box', outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: 'Inter, sans-serif' }
+const LABEL_STYLE = { display: 'block', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 6 }
+
+function Field({ label, ...props }) {
+  return (
+    <label style={{ display: 'block' }}>
+      <span style={LABEL_STYLE}>{label}</span>
+      <input {...props} style={INP_STYLE}
+        onFocus={e => { e.target.style.borderColor = 'rgba(226,27,77,0.55)'; e.target.style.boxShadow = '0 0 0 3px rgba(226,27,77,0.12)' }}
+        onBlur={e  => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none' }}
+      />
+    </label>
+  )
+}
+
 // ── Login Page ─────────────────────────────────────────────────────────────────
 
 function LoginPage({ onLogin }) {
@@ -168,30 +192,11 @@ function LoginPage({ onLogin }) {
 
   // ── Shared styles ──────────────────────────────────────────────────────────
   const S = {
-    inp:   { display: 'block', width: '100%', padding: '0.7rem 0.875rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, color: '#fff', fontSize: 14, boxSizing: 'border-box', outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: 'Inter, sans-serif' },
-    label: { display: 'block', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 6 },
     btn:   { marginTop: '1.25rem', width: '100%', padding: '0.8rem', background: 'linear-gradient(135deg, #E21B4D 0%, #c9163f 100%)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: loading ? 'wait' : 'pointer', letterSpacing: '0.02em', fontFamily: 'Inter, sans-serif', opacity: loading ? 0.7 : 1, transition: 'all 0.18s', boxShadow: '0 4px 20px rgba(226,27,77,0.35), 0 1px 4px rgba(0,0,0,0.2)' },
     link:  { background: 'none', border: 'none', color: '#E21B4D', cursor: 'pointer', fontSize: 13, padding: 0, fontFamily: 'Inter, sans-serif', fontWeight: 500 },
     err:   { marginTop: '1rem', padding: '0.7rem 0.875rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 10, fontSize: 13, color: '#fca5a5', lineHeight: 1.5 },
     ok:    { marginTop: '1rem', padding: '0.7rem 0.875rem', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.18)', borderRadius: 10, fontSize: 13, color: '#86efac', lineHeight: 1.5 },
   }
-
-  const LogoMark = ({ size = 30 }) => (
-    <svg width={size} height={Math.round(size * 0.73)} viewBox="0 0 24 18" fill="none">
-      <path d="M0 18 L8 2 L12 9 L14 6 L24 18Z" fill="#E21B4D" opacity="0.95"/>
-      <path d="M12 9 L14 6 L24 18 L12 18Z" fill="#E21B4D" opacity="0.42"/>
-    </svg>
-  )
-
-  const Field = ({ label, ...props }) => (
-    <label style={{ display: 'block' }}>
-      <span style={S.label}>{label}</span>
-      <input {...props} style={S.inp}
-        onFocus={e => { e.target.style.borderColor = 'rgba(226,27,77,0.55)'; e.target.style.boxShadow = '0 0 0 3px rgba(226,27,77,0.12)' }}
-        onBlur={e  => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none' }}
-      />
-    </label>
-  )
 
   // ── Recover password ────────────────────────────────────────────────────────
   if (mode === 'recover') return (
