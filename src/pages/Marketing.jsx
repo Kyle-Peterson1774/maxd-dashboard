@@ -104,9 +104,9 @@ function CampaignModal({ campaign, onClose, onSave, onDelete }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} style={btnPrimary}>Save Campaign</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
-          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} style={{ ...btnGhost, marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
+          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} className="btn btn-primary">Save Campaign</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} className="btn btn-ghost" style={{ marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
         </div>
       </div>
     </div>
@@ -147,9 +147,9 @@ function EmailModal({ email, onClose, onSave, onDelete }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} style={btnPrimary}>Save</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
-          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} style={{ ...btnGhost, marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
+          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} className="btn btn-primary">Save</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} className="btn btn-ghost" style={{ marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
         </div>
       </div>
     </div>
@@ -158,8 +158,6 @@ function EmailModal({ email, onClose, onSave, onDelete }) {
 
 // ── Styles ──────────────────────────────────────────────────────────────────
 const inp = { display: 'block', width: '100%', marginTop: 4, padding: '0.45rem 0.6rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 14, boxSizing: 'border-box' }
-const btnPrimary = { background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, padding: '0.5rem 1.1rem', fontSize: 14, cursor: 'pointer', fontWeight: 600 }
-const btnGhost = { background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.5rem 1rem', fontSize: 14, cursor: 'pointer' }
 
 // ── Main Component ──────────────────────────────────────────────────────────
 export default function Marketing() {
@@ -235,14 +233,16 @@ export default function Marketing() {
   }, [data.campaigns])
 
   const tabStyle = (t) => ({
-    padding: '0.45rem 1rem', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 500,
-    background: tab === t ? 'var(--navy)' : 'transparent',
-    color: tab === t ? '#fff' : 'var(--text-secondary)',
-    border: tab === t ? 'none' : '1px solid var(--border)',
+    padding: '0.4rem 0.9rem', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: tab === t ? 600 : 400,
+    background: tab === t ? 'var(--surface-2)' : 'transparent',
+    color: tab === t ? 'var(--text-primary)' : 'var(--text-secondary)',
+    border: 'none',
+    boxShadow: tab === t ? 'var(--shadow-sm)' : 'none',
+    transition: 'all 0.12s ease',
   })
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 1100, margin: '0 auto' }}>
+    <>
       <PageHeader title="Marketing" subtitle="Ad campaigns, email performance & spend tracking" />
 
       {/* KPI Row */}
@@ -283,10 +283,12 @@ export default function Marketing() {
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
-        <button style={tabStyle('campaigns')} onClick={() => setTab('campaigns')}>Campaigns</button>
-        <button style={tabStyle('email')} onClick={() => setTab('email')}>Email</button>
-        <button onClick={() => tab === 'campaigns' ? setCampaignModal({}) : setEmailModal({})} style={{ marginLeft: 'auto', ...btnPrimary }}>+ {tab === 'campaigns' ? 'Add Campaign' : 'Log Email'}</button>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 3, background: 'var(--surface-3)', padding: 3, borderRadius: 8 }}>
+          <button style={tabStyle('campaigns')} onClick={() => setTab('campaigns')}>Campaigns</button>
+          <button style={tabStyle('email')} onClick={() => setTab('email')}>Email</button>
+        </div>
+        <button onClick={() => tab === 'campaigns' ? setCampaignModal({}) : setEmailModal({})} className="btn btn-primary" style={{ marginLeft: 'auto' }}>+ {tab === 'campaigns' ? 'Add Campaign' : 'Log Email'}</button>
       </div>
 
       {/* Campaigns Tab */}
@@ -324,7 +326,7 @@ export default function Marketing() {
                     <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
                       Add your first ad campaign to track spend, ROAS, and conversions across Meta, Google, and TikTok.
                     </div>
-                    <button onClick={() => setCampaignModal({})} style={btnPrimary}>+ Add Campaign</button>
+                    <button onClick={() => setCampaignModal({})} className="btn btn-primary">+ Add Campaign</button>
                   </>
                 ) : (
                   <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>No campaigns match your filters.</span>
@@ -390,6 +392,6 @@ export default function Marketing() {
       {/* Modals */}
       {campaignModal !== null && <CampaignModal campaign={Object.keys(campaignModal).length ? campaignModal : null} onClose={() => setCampaignModal(null)} onSave={saveCampaign} onDelete={deleteCampaign} />}
       {emailModal !== null && <EmailModal email={Object.keys(emailModal).length ? emailModal : null} onClose={() => setEmailModal(null)} onSave={saveEmail} onDelete={deleteEmail} />}
-    </div>
+    </>
   )
 }
