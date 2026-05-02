@@ -3,6 +3,7 @@ import PageHeader from '../components/ui/PageHeader.jsx'
 import { getCredentials } from '../lib/credentials.js'
 import { getTeam } from '../lib/team.js'
 import { dbSet } from '../lib/db.js'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 
 // ── Storage ───────────────────────────────────────────────────────────────────
 const STORE_KEY = 'maxd_scripts'
@@ -1111,6 +1112,13 @@ export default function Scripts() {
           {filtered.map(s => <ScriptCard key={s.id} script={s} onSelect={handleSelect} onDelete={handleDelete} />)}
         </div>
       )}
+      <AgentPanel
+        module="scripts"
+        contextData={{
+          total: scripts.length,
+          readyToFilm: scripts.filter(s => s.status === 'approved').length,
+        }}
+      />
     </div>
   )
 }

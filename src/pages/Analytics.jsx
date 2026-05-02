@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 import PageHeader from '../components/ui/PageHeader.jsx'
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -510,6 +511,12 @@ export default function Analytics() {
         </div>
       )}
 
+      <AgentPanel
+        module="analytics"
+        contextData={{
+          totalEntries: entries.length,
+        }}
+      />
       {editing && (
         <EntryModal
           entry={editing}

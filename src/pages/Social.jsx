@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { fetchLiveFollowerSnapshot } from '../lib/liveData.js'
 import { dbSet, dbGet } from '../lib/db.js'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 
 const STORE_KEY = 'maxd_social'
 
@@ -436,6 +437,13 @@ export default function Social() {
       )}
 
       {snapModal !== null && <SnapshotModal snapshot={snapModal?.id ? snapModal : null} onClose={() => setSnapModal(null)} onSave={saveSnapshot} onDelete={deleteSnapshot} />}
+      <AgentPanel
+        module="social"
+        contextData={{
+          totalPosts: data.posts.length,
+          snapshots: data.snapshots.length,
+        }}
+      />
       {postModal !== null && <PostModal post={postModal?.id ? postModal : null} onClose={() => setPostModal(null)} onSave={savePost} onDelete={deletePost} />}
     </div>
   )

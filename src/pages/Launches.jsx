@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { getTeam } from '../lib/team.js'
 import { dbSet, dbGet } from '../lib/db.js'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 const STORE_KEY = 'maxd_launches'
@@ -469,6 +470,13 @@ export default function Launches() {
           {filtered.map(l => <LaunchCard key={l.id} launch={l} onSelect={setSelected} />)}
         </div>
       )}
+      <AgentPanel
+        module="launches"
+        contextData={{
+          total: launches.length,
+          active: launches.filter(l => l.status === 'active').length,
+        }}
+      />
     </div>
   )
 }

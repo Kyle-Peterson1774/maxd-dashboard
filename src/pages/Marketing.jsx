@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { dbSet, dbGet } from '../lib/db.js'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 
 const STORE_KEY = 'maxd_marketing'
 
@@ -391,6 +392,14 @@ export default function Marketing() {
 
       {/* Modals */}
       {campaignModal !== null && <CampaignModal campaign={Object.keys(campaignModal).length ? campaignModal : null} onClose={() => setCampaignModal(null)} onSave={saveCampaign} onDelete={deleteCampaign} />}
+      <AgentPanel
+        module="marketing"
+        contextData={{
+          campaigns: data.campaigns.length,
+          emails: data.emails.length,
+          activeCampaigns: data.campaigns.filter(c => c.status === 'active').length,
+        }}
+      />
       {emailModal !== null && <EmailModal email={Object.keys(emailModal).length ? emailModal : null} onClose={() => setEmailModal(null)} onSave={saveEmail} onDelete={deleteEmail} />}
     </>
   )

@@ -3,6 +3,7 @@ import PageHeader from '../components/ui/PageHeader.jsx'
 import { fetchShopifyOrders, fetchShopifyProducts, shopifyProductsToInventory, shopifyOrdersToOpsOrders } from '../lib/liveData.js'
 import { isConnected } from '../lib/credentials.js'
 import { dbSet, dbGet } from '../lib/db.js'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 
 const STORE_KEY = 'maxd_operations'
 
@@ -472,6 +473,14 @@ export default function Operations() {
       {/* Modals */}
       {invModal !== null && <InventoryModal item={Object.keys(invModal).length ? invModal : null} onClose={() => setInvModal(null)} onSave={saveInv} onDelete={deleteInv} />}
       {batchModal !== null && <BatchModal batch={Object.keys(batchModal).length ? batchModal : null} onClose={() => setBatchModal(null)} onSave={saveBatch} onDelete={deleteBatch} />}
+      <AgentPanel
+        module="operations"
+        contextData={{
+          inventory: data.inventory.length,
+          openOrders: data.orders.filter(o => ['pending','processing','shipped'].includes(o.status)).length,
+          lowStock: data.inventory.filter(i => Number(i.stock) <= Number(i.reorderPoint || 0)).length,
+        }}
+      />
       {orderModal !== null && <OrderModal order={Object.keys(orderModal).length ? orderModal : null} onClose={() => setOrderModal(null)} onSave={saveOrder} onDelete={deleteOrder} />}
     </>
   )

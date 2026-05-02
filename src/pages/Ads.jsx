@@ -3,6 +3,7 @@ import PageHeader from '../components/ui/PageHeader.jsx'
 import StatCard from '../components/ui/StatCard.jsx'
 import { getTeam } from '../lib/team.js'
 import { getCredentials } from '../lib/credentials.js'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 import { dbSet, dbGet } from '../lib/db.js'
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -520,6 +521,14 @@ export default function Ads() {
           {filtered.map(a => <AdCard key={a.id} ad={a} onSelect={setSelected} />)}
         </div>
       )}
+      <AgentPanel
+        module="ads"
+        contextData={{
+          totalCampaigns: ads.length,
+          live: ads.filter(a => a.status === 'live').length,
+          inReview: ads.filter(a => a.status === 'review').length,
+        }}
+      />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import PageHeader from '../components/ui/PageHeader.jsx'
 import { fetchShopifyOrders, shopifyOrdersToTransactions } from '../lib/liveData.js'
 import { isConnected } from '../lib/credentials.js'
 import { dbSet } from '../lib/db.js'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 
 const STORE_KEY = 'maxd_finance'
 
@@ -389,6 +390,14 @@ export default function Finance() {
       {/* Modals */}
       {monthModal !== null && <MonthModal month={Object.keys(monthModal).length ? monthModal : null} onClose={() => setMonthModal(null)} onSave={saveMonth} onDelete={deleteMonth} />}
       {txModal !== null && <TxModal tx={Object.keys(txModal).length ? txModal : null} onClose={() => setTxModal(null)} onSave={saveTx} onDelete={deleteTx} />}
+      <AgentPanel
+        module="finance"
+        contextData={{
+          months: data.months.length,
+          transactions: data.transactions.length,
+          cashOnHand: data.cashOnHand,
+        }}
+      />
       {cashModal && <CashModal current={data.cashOnHand} onClose={() => setCashModal(false)} onSave={v => persist({ ...data, cashOnHand: v })} />}
     </>
   )

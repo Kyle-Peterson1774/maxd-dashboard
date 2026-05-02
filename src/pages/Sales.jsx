@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { dbSet, dbGet } from '../lib/db.js'
 import { getTeam } from '../lib/team.js'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 
 const STORE_KEY = 'maxd_sales'
 
@@ -770,6 +771,15 @@ export default function Sales() {
       {accountModal !== null && <AccountModal account={Object.keys(accountModal).length ? accountModal : null} onClose={() => setAccountModal(null)} onSave={saveAccount} onDelete={deleteAccount} />}
       {contactModal !== null && <ContactModal contact={Object.keys(contactModal).length ? contactModal : null} accounts={data.accounts} onClose={() => setContactModal(null)} onSave={saveContact} onDelete={deleteContact} />}
       {eventModal !== null && <EventModal event={Object.keys(eventModal).length ? eventModal : null} onClose={() => setEventModal(null)} onSave={saveEvent} onDelete={deleteEvent} />}
+      <AgentPanel
+        module="sales"
+        contextData={{
+          deals: data.deals.length,
+          openDeals: data.deals.filter(d => !['won','lost'].includes(d.stage)).length,
+          accounts: data.accounts.length,
+          contacts: data.contacts.length,
+        }}
+      />
       {activityModal && <ActivityModal accounts={data.accounts} contacts={data.contacts} deals={data.deals} onClose={() => setActivityModal(false)} onSave={saveActivity} />}
     </>
   )
