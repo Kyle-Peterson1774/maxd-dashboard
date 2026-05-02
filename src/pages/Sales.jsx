@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { dbSet, dbGet } from '../lib/db.js'
 import { getTeam } from '../lib/team.js'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 
 const STORE_KEY = 'maxd_sales'
 
@@ -81,8 +82,6 @@ function daysSince(dateStr) {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const inp = { display: 'block', width: '100%', marginTop: 4, padding: '0.45rem 0.6rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 14, boxSizing: 'border-box' }
-const btnPrimary = { background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, padding: '0.5rem 1.1rem', fontSize: 14, cursor: 'pointer', fontWeight: 600 }
-const btnGhost = { background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.5rem 1rem', fontSize: 14, cursor: 'pointer' }
 
 function TempBadge({ temp }) {
   const t = LEAD_TEMPS.find(x => x.key === temp) || LEAD_TEMPS[0]
@@ -153,9 +152,9 @@ function DealModal({ deal, accounts, contacts, onClose, onSave, onDelete }) {
           </label>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} style={btnPrimary}>Save Deal</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
-          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} style={{ ...btnGhost, marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
+          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} className="btn btn-primary">Save Deal</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} className="btn btn-ghost" style={{ marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
         </div>
       </div>
     </div>
@@ -215,9 +214,9 @@ function AccountModal({ account, onClose, onSave, onDelete }) {
           </label>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} style={btnPrimary}>Save Account</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
-          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} style={{ ...btnGhost, marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
+          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} className="btn btn-primary">Save Account</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} className="btn btn-ghost" style={{ marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
         </div>
       </div>
     </div>
@@ -281,9 +280,9 @@ function ContactModal({ contact, accounts, onClose, onSave, onDelete }) {
           </label>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} style={btnPrimary}>Save Contact</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
-          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} style={{ ...btnGhost, marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
+          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} className="btn btn-primary">Save Contact</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} className="btn btn-ghost" style={{ marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
         </div>
       </div>
     </div>
@@ -341,9 +340,9 @@ function EventModal({ event, onClose, onSave, onDelete }) {
           </label>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} style={btnPrimary}>Save Event</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
-          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} style={{ ...btnGhost, marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
+          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} className="btn btn-primary">Save Event</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} className="btn btn-ghost" style={{ marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
         </div>
       </div>
     </div>
@@ -398,8 +397,8 @@ function ActivityModal({ accounts, contacts, deals, onClose, onSave }) {
           </label>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button onClick={() => { onSave({ ...form, id: nid() }); onClose() }} style={btnPrimary}>Log Activity</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
+          <button onClick={() => { onSave({ ...form, id: nid() }); onClose() }} className="btn btn-primary">Log Activity</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
         </div>
       </div>
     </div>
@@ -574,17 +573,19 @@ export default function Sales() {
   const needsFollowUp = data.contacts.filter(c => { const d = daysSince(c.lastContacted); return d !== null && d >= 7 })
 
   const tabStyle = (t) => ({
-    padding: '0.45rem 1rem', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 500,
-    background: tab === t ? 'var(--navy)' : 'transparent',
-    color: tab === t ? '#fff' : 'var(--text-secondary)',
-    border: tab === t ? 'none' : '1px solid var(--border)',
+    padding: '0.4rem 0.9rem', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: tab === t ? 600 : 400,
+    background: tab === t ? 'var(--surface-2)' : 'transparent',
+    color: tab === t ? 'var(--text-primary)' : 'var(--text-secondary)',
+    border: 'none',
+    boxShadow: tab === t ? 'var(--shadow-sm)' : 'none',
+    transition: 'all 0.12s ease',
   })
 
   const addActions = { pipeline: () => setDealModal({}), accounts: () => setAccountModal({}), contacts: () => setContactModal({}), events: () => setEventModal({}) }
   const addLabels = { pipeline: 'New Deal', accounts: 'New Account', contacts: 'New Contact', events: 'New Event' }
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 1200, margin: '0 auto' }}>
+    <>
       <PageHeader title="Sales" subtitle="Pipeline, accounts, contacts & events" />
 
       {/* Alert strips */}
@@ -603,28 +604,30 @@ export default function Sales() {
 
       {/* Tabs + actions */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <button style={tabStyle('pipeline')} onClick={() => setTab('pipeline')}>🎯 Pipeline</button>
-        <button style={tabStyle('accounts')} onClick={() => setTab('accounts')}>🏢 Accounts</button>
-        <button style={tabStyle('contacts')} onClick={() => setTab('contacts')}>👤 Contacts</button>
-        <button style={tabStyle('events')} onClick={() => setTab('events')}>📅 Events</button>
-        <button style={tabStyle('activity')} onClick={() => setTab('activity')}>📋 Activity</button>
+        <div style={{ display: 'flex', gap: 3, background: 'var(--surface-3)', padding: 3, borderRadius: 8 }}>
+          <button style={tabStyle('pipeline')} onClick={() => setTab('pipeline')}>🎯 Pipeline</button>
+          <button style={tabStyle('accounts')} onClick={() => setTab('accounts')}>🏢 Accounts</button>
+          <button style={tabStyle('contacts')} onClick={() => setTab('contacts')}>👤 Contacts</button>
+          <button style={tabStyle('events')} onClick={() => setTab('events')}>📅 Events</button>
+          <button style={tabStyle('activity')} onClick={() => setTab('activity')}>📋 Activity</button>
+        </div>
         {['accounts','contacts'].includes(tab) && (
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${tab}…`} style={{ padding: '0.4rem 0.7rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 13, width: 180 }} />
         )}
         {tab === 'contacts' && (
           <div style={{ display: 'flex', gap: 4 }}>
             {['all','hot','warm','cold'].map(t => (
-              <button key={t} onClick={() => setTempFilter(t)} style={{ padding: '0.3rem 0.65rem', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: tempFilter === t ? 'var(--navy)' : 'var(--surface-3)', color: tempFilter === t ? '#fff' : 'var(--text-secondary)', border: 'none' }}>
+              <button key={t} onClick={() => setTempFilter(t)} style={{ padding: '0.3rem 0.65rem', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: tempFilter === t ? 'var(--surface-2)' : 'transparent', color: tempFilter === t ? 'var(--text-primary)' : 'var(--text-secondary)', border: 'none', boxShadow: tempFilter === t ? 'var(--shadow-sm)' : 'none', transition: 'all 0.12s ease' }}>
                 {t === 'all' ? 'All' : t.charAt(0).toUpperCase()+t.slice(1)}
               </button>
             ))}
           </div>
         )}
         {tab !== 'activity' && (
-          <button onClick={addActions[tab]} style={{ marginLeft: 'auto', ...btnPrimary }}>+ {addLabels[tab]}</button>
+          <button onClick={addActions[tab]} className="btn btn-primary" style={{ marginLeft: 'auto' }}>+ {addLabels[tab]}</button>
         )}
         {tab === 'activity' && (
-          <button onClick={() => setActivityModal(true)} style={{ marginLeft: 'auto', ...btnPrimary }}>+ Log Activity</button>
+          <button onClick={() => setActivityModal(true)} className="btn btn-primary" style={{ marginLeft: 'auto' }}>+ Log Activity</button>
         )}
       </div>
 
@@ -768,7 +771,16 @@ export default function Sales() {
       {accountModal !== null && <AccountModal account={Object.keys(accountModal).length ? accountModal : null} onClose={() => setAccountModal(null)} onSave={saveAccount} onDelete={deleteAccount} />}
       {contactModal !== null && <ContactModal contact={Object.keys(contactModal).length ? contactModal : null} accounts={data.accounts} onClose={() => setContactModal(null)} onSave={saveContact} onDelete={deleteContact} />}
       {eventModal !== null && <EventModal event={Object.keys(eventModal).length ? eventModal : null} onClose={() => setEventModal(null)} onSave={saveEvent} onDelete={deleteEvent} />}
+      <AgentPanel
+        module="sales"
+        contextData={{
+          deals: data.deals.length,
+          openDeals: data.deals.filter(d => !['won','lost'].includes(d.stage)).length,
+          accounts: data.accounts.length,
+          contacts: data.contacts.length,
+        }}
+      />
       {activityModal && <ActivityModal accounts={data.accounts} contacts={data.contacts} deals={data.deals} onClose={() => setActivityModal(false)} onSave={saveActivity} />}
-    </div>
+    </>
   )
 }

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { fetchLiveFollowerSnapshot } from '../lib/liveData.js'
 import { dbSet, dbGet } from '../lib/db.js'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 
 const STORE_KEY = 'maxd_social'
 
@@ -359,10 +360,10 @@ export default function Social() {
       {/* Post log */}
       {tab === 'posts' && (
         <div>
-          <div style={{ display: 'flex', gap: 6, marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 3, marginBottom: '1rem', flexWrap: 'wrap', background: 'var(--surface-3)', padding: 3, borderRadius: 8, width: 'fit-content' }}>
             {[{ key: 'all', label: 'All' }, ...Object.entries(PLATFORMS).map(([k, p]) => ({ key: k, label: `${p.icon} ${p.label}` }))].map(f => (
               <button key={f.key} onClick={() => setPlatFilter(f.key)}
-                style={{ fontSize: 11, padding: '5px 11px', borderRadius: 20, fontWeight: 600, cursor: 'pointer', border: `1.5px solid ${platFilter === f.key ? 'var(--navy)' : 'var(--border)'}`, background: platFilter === f.key ? 'var(--navy)' : 'var(--surface-2)', color: platFilter === f.key ? 'var(--white)' : 'var(--text-muted)' }}>
+                style={{ fontSize: 11, padding: '5px 11px', borderRadius: 6, fontWeight: platFilter === f.key ? 600 : 400, cursor: 'pointer', border: 'none', background: platFilter === f.key ? 'var(--surface-2)' : 'transparent', color: platFilter === f.key ? 'var(--text-primary)' : 'var(--text-muted)', boxShadow: platFilter === f.key ? 'var(--shadow-sm)' : 'none', transition: 'all 0.12s ease' }}>
                 {f.label}
               </button>
             ))}
@@ -436,6 +437,13 @@ export default function Social() {
       )}
 
       {snapModal !== null && <SnapshotModal snapshot={snapModal?.id ? snapModal : null} onClose={() => setSnapModal(null)} onSave={saveSnapshot} onDelete={deleteSnapshot} />}
+      <AgentPanel
+        module="social"
+        contextData={{
+          totalPosts: data.posts.length,
+          snapshots: data.snapshots.length,
+        }}
+      />
       {postModal !== null && <PostModal post={postModal?.id ? postModal : null} onClose={() => setPostModal(null)} onSave={savePost} onDelete={deletePost} />}
     </div>
   )

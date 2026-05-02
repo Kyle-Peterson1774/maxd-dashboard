@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 import PageHeader from '../components/ui/PageHeader.jsx'
+import { fetchInstagramMedia, fetchYouTubeVideos, instagramMediaToAnalytics, youtubeVideosToAnalytics } from '../lib/liveData.js'
+import { isConnected } from '../lib/credentials.js'
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 const STORE_KEY = 'maxd_analytics'
@@ -242,26 +245,11 @@ function EntryModal({ entry, onSave, onClose, onDelete }) {
         {/* Actions */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
           {onDelete && (
-            <button
-              onClick={onDelete}
-              style={{ background: 'transparent', border: '1px solid var(--border-mid)', borderRadius: 8, color: 'var(--text-muted)', padding: '8px 14px', fontSize: 12.5, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-            >
-              Delete
-            </button>
+            <button onClick={onDelete} className="btn btn-ghost">Delete</button>
           )}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <button
-              onClick={onClose}
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--border-mid)', borderRadius: 8, color: 'var(--text-secondary)', padding: '8px 16px', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => onSave(draft)}
-              style={{ background: 'var(--red)', border: 'none', borderRadius: 8, color: '#fff', padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-            >
-              Save
-            </button>
+            <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+            <button onClick={() => onSave(draft)} className="btn btn-primary">Save</button>
           </div>
         </div>
       </div>
@@ -271,13 +259,41 @@ function EntryModal({ entry, onSave, onClose, onDelete }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Analytics() {
-  const [entries,  setEntries]  = useState([])
-  const [editing,  setEditing]  = useState(null)
-  const [platform, setPlatform] = useState('all')
-  const [sortBy,   setSortBy]   = useState('postDate')
-  const [sortDir,  setSortDir]  = useState('desc')
+  const [entries,    setEntries]    = useState([])
+  const [editing,    setEditing]    = useState(null)
+  const [platform,   setPlatform]   = useState('all')
+  const [sortBy,     setSortBy]     = useState('postDate')
+  const [sortDir,    setSortDir]    = useState('desc')
+  const [importing,  setImporting]  = useState(false)
+  const [importMsg,  setImportMsg]  = useState(null)
 
   useEffect(() => { setEntries(initEntries()) }, [])
+
+  async function handleImportFromSocial() {
+    setImporting(true)
+    setImportMsg(null)
+    const [igMedia, ytVideos] = await Promise.all([
+      isConnected('instagram') ? fetchInstagramMedia(50) : Promise.resolve(null),
+      isConnected('youtube')   ? fetchYouTubeVideos(25)  : Promise.resolve(null),
+    ])
+    const igEntries = igMedia ? instagramMediaToAnalytics(igMedia) : []
+    const ytEntries = ytVideos ? youtubeVideosToAnalytics(ytVideos) : []
+    const imported = [...igEntries, ...ytEntries]
+    if (imported.length === 0) {
+      setImportMsg('No posts found — connect Instagram or YouTube in Settings')
+      setImporting(false)
+      return
+    }
+    setEntries(prev => {
+      const existingIds = new Set(prev.map(e => e.id))
+      const newOnes = imported.filter(e => !existingIds.has(e.id))
+      const next = [...newOnes, ...prev]
+      saveEntries(next)
+      setImportMsg(`Imported ${newOnes.length} post${newOnes.length !== 1 ? 's' : ''}`)
+      return next
+    })
+    setImporting(false)
+  }
 
   function handleSave(updated) {
     const next = entries.some(e => e.id === updated.id)
@@ -336,18 +352,23 @@ export default function Analytics() {
 
   return (
     <div>
-      <PageHeader
-        title="Analytics"
-        subtitle="Track post performance and engagement across platforms"
-        actions={
-          <button
-            onClick={() => setEditing(EMPTY_ENTRY())}
-            className="btn btn-primary"
-          >
-            + Log Post
+      <PageHeader title="Analytics" subtitle="Track post performance and engagement across platforms">
+        {(isConnected('instagram') || isConnected('youtube')) && (
+          <button onClick={handleImportFromSocial} disabled={importing} className="btn" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)', marginRight: 8 }}>
+            {importing ? 'Importing…' : '↓ Import Posts'}
           </button>
-        }
-      />
+        )}
+        <button onClick={() => setEditing(EMPTY_ENTRY())} className="btn btn-primary">
+          + Log Post
+        </button>
+      </PageHeader>
+
+      {importMsg && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0.6rem 1rem', borderRadius: 8, marginBottom: '1rem', fontSize: 13, background: importMsg.startsWith('Imported') ? '#22c55e15' : '#f59e0b15', border: `1px solid ${importMsg.startsWith('Imported') ? '#22c55e40' : '#f59e0b40'}`, color: importMsg.startsWith('Imported') ? '#22c55e' : '#f59e0b' }}>
+          {importMsg.startsWith('Imported') ? '✓' : '⚠'} {importMsg}
+          <button onClick={() => setImportMsg(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: 16, lineHeight: 1 }}>×</button>
+        </div>
+      )}
 
       {/* Summary stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 20 }}>
@@ -382,7 +403,7 @@ export default function Analytics() {
 
       {/* Platform filter + sort controls */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', background: 'var(--surface-3)', padding: 3, borderRadius: 8 }}>
           {['all', ...ALL_PLATFORMS].map(p => {
             const count = p === 'all' ? entries.length : entries.filter(e => e.platform === p).length
             if (count === 0 && p !== 'all') return null
@@ -392,15 +413,17 @@ export default function Analytics() {
                 key={p}
                 onClick={() => setPlatform(p)}
                 style={{
-                  background: active ? 'var(--navy)' : 'var(--surface-2)',
-                  border: `1px solid ${active ? 'var(--navy)' : 'var(--border-mid)'}`,
-                  borderRadius: 8,
-                  color: active ? '#fff' : 'var(--text-secondary)',
+                  background: active ? 'var(--surface-2)' : 'transparent',
+                  border: 'none',
+                  borderRadius: 6,
+                  color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
                   padding: '5px 12px',
                   fontSize: 12,
-                  fontWeight: 500,
+                  fontWeight: active ? 600 : 400,
                   cursor: 'pointer',
                   fontFamily: 'var(--font-body)',
+                  boxShadow: active ? 'var(--shadow-sm)' : 'none',
+                  transition: 'all 0.12s ease',
                 }}
               >
                 {p === 'all' ? 'All' : p} <span style={{ opacity: 0.6 }}>({count})</span>
@@ -530,6 +553,12 @@ export default function Analytics() {
         </div>
       )}
 
+      <AgentPanel
+        module="analytics"
+        contextData={{
+          totalEntries: entries.length,
+        }}
+      />
       {editing && (
         <EntryModal
           entry={editing}

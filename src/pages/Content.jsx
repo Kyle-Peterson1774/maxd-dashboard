@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 import { dbSet } from '../lib/db.js'
 // ── Storage ──────────────────────────────────────────────────────────────────
 const STORE_KEY = 'maxd_content'
@@ -1068,6 +1069,16 @@ export default function Content() {
           onDelete={handleDelete}
         />
       )}
+
+      <AgentPanel
+        module="content"
+        contextData={{
+          totalItems: items.length,
+          pipeline: STAGES.reduce((acc, s) => { acc[s.key] = items.filter(i => i.status === s.key).length; return acc }, {}),
+          upcoming: items.filter(i => i.scheduledDate >= new Date().toISOString().split('T')[0]).length,
+          recentTitles: items.slice(0, 5).map(i => i.title),
+        }}
+      />
     </div>
   )
 }

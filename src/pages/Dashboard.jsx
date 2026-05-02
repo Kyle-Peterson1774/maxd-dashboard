@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import StatCard from '../components/ui/StatCard.jsx'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 import { getTeam } from '../lib/team.js'
 import { useAuth } from '../lib/auth.jsx'
 
@@ -560,7 +561,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Queue + Activity */}
+      {/* Queue + Activity · Agent */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
         <div className="card">
           <CardHeader
@@ -605,6 +606,17 @@ export default function Dashboard() {
           }
         </div>
       </div>
+
+      <AgentPanel
+        module="dashboard"
+        contextData={{
+          scripts:  { total: scripts.length, active: activeScripts, readyToFilm: readyScripts, upcomingShoots: upcomingShoots.length },
+          content:  { total: content.length, scheduledUpcoming },
+          launches: { active: activeLaunches.length },
+          queue:    { pending: pendingItems.length, sentThisMonth },
+          business: { monthlyRevenue: biz.monthlyRevenue, netProfit: biz.netProfit, cashOnHand: biz.cashOnHand, totalFollowers: biz.totalFollowers, activeCampaigns: biz.activeCampaigns, lowStockAlerts: biz.lowStockItems.length },
+        }}
+      />
     </div>
   )
 }

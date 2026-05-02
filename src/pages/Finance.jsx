@@ -3,6 +3,7 @@ import PageHeader from '../components/ui/PageHeader.jsx'
 import { fetchShopifyOrders, shopifyOrdersToTransactions } from '../lib/liveData.js'
 import { isConnected } from '../lib/credentials.js'
 import { dbSet } from '../lib/db.js'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 
 const STORE_KEY = 'maxd_finance'
 
@@ -42,8 +43,6 @@ function money(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimu
 function pctStr(n) { return (Number(n || 0) * 100).toFixed(1) + '%' }
 
 const inp = { display: 'block', width: '100%', marginTop: 4, padding: '0.45rem 0.6rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 14, boxSizing: 'border-box' }
-const btnPrimary = { background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, padding: '0.5rem 1.1rem', fontSize: 14, cursor: 'pointer', fontWeight: 600 }
-const btnGhost = { background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.5rem 1rem', fontSize: 14, cursor: 'pointer' }
 
 // ── Month P&L Modal ─────────────────────────────────────────────────────────
 function MonthModal({ month, onClose, onSave, onDelete }) {
@@ -82,9 +81,9 @@ function MonthModal({ month, onClose, onSave, onDelete }) {
           <div><div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{Number(form.revenue) ? pctStr(netProfit/Number(form.revenue)) : '—'}</div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Net Margin</div></div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} style={btnPrimary}>Save</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
-          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} style={{ ...btnGhost, marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
+          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} className="btn btn-primary">Save</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} className="btn btn-ghost" style={{ marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
         </div>
       </div>
     </div>
@@ -129,9 +128,9 @@ function TxModal({ tx, onClose, onSave, onDelete }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} style={btnPrimary}>Save</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
-          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} style={{ ...btnGhost, marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
+          <button onClick={() => { onSave({ ...form, id: form.id || nid() }); onClose() }} className="btn btn-primary">Save</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          {!isNew && <button onClick={() => { onDelete(form.id); onClose() }} className="btn btn-ghost" style={{ marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>}
         </div>
       </div>
     </div>
@@ -147,8 +146,8 @@ function CashModal({ current, onClose, onSave }) {
         <h3 style={{ margin: '0 0 1rem', color: 'var(--text-primary)', fontFamily: 'Oswald, sans-serif' }}>Update Cash on Hand</h3>
         <input type="number" value={val} onChange={e => setVal(e.target.value)} style={inp} />
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-          <button onClick={() => { onSave(Number(val)); onClose() }} style={btnPrimary}>Save</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
+          <button onClick={() => { onSave(Number(val)); onClose() }} className="btn btn-primary">Save</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
         </div>
       </div>
     </div>
@@ -234,10 +233,12 @@ export default function Finance() {
   const sortedTx = useMemo(() => [...data.transactions].sort((a, b) => new Date(b.date) - new Date(a.date)), [data.transactions])
 
   const tabStyle = (t) => ({
-    padding: '0.45rem 1rem', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 500,
-    background: tab === t ? 'var(--navy)' : 'transparent',
-    color: tab === t ? '#fff' : 'var(--text-secondary)',
-    border: tab === t ? 'none' : '1px solid var(--border)',
+    padding: '0.4rem 0.9rem', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: tab === t ? 600 : 400,
+    background: tab === t ? 'var(--surface-2)' : 'transparent',
+    color: tab === t ? 'var(--text-primary)' : 'var(--text-secondary)',
+    border: 'none',
+    boxShadow: tab === t ? 'var(--shadow-sm)' : 'none',
+    transition: 'all 0.12s ease',
   })
 
   const latestNetMargin = latestMonth && Number(latestMonth.revenue)
@@ -249,7 +250,7 @@ export default function Finance() {
     : null
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 1100, margin: '0 auto' }}>
+    <>
       <PageHeader title="Finance" subtitle="P&L tracker, expense breakdown & transaction log" />
 
       {/* Shopify sync status */}
@@ -302,10 +303,12 @@ export default function Finance() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
-        <button style={tabStyle('pl')} onClick={() => setTab('pl')}>P&L by Month</button>
-        <button style={tabStyle('transactions')} onClick={() => setTab('transactions')}>Transactions</button>
-        <button onClick={() => tab === 'pl' ? setMonthModal({}) : setTxModal({})} style={{ marginLeft: 'auto', ...btnPrimary }}>+ {tab === 'pl' ? 'Add Month' : 'Add Transaction'}</button>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 3, background: 'var(--surface-3)', padding: 3, borderRadius: 8 }}>
+          <button style={tabStyle('pl')} onClick={() => setTab('pl')}>P&L by Month</button>
+          <button style={tabStyle('transactions')} onClick={() => setTab('transactions')}>Transactions</button>
+        </div>
+        <button onClick={() => tab === 'pl' ? setMonthModal({}) : setTxModal({})} className="btn btn-primary" style={{ marginLeft: 'auto' }}>+ {tab === 'pl' ? 'Add Month' : 'Add Transaction'}</button>
       </div>
 
       {/* P&L Tab */}
@@ -387,7 +390,15 @@ export default function Finance() {
       {/* Modals */}
       {monthModal !== null && <MonthModal month={Object.keys(monthModal).length ? monthModal : null} onClose={() => setMonthModal(null)} onSave={saveMonth} onDelete={deleteMonth} />}
       {txModal !== null && <TxModal tx={Object.keys(txModal).length ? txModal : null} onClose={() => setTxModal(null)} onSave={saveTx} onDelete={deleteTx} />}
+      <AgentPanel
+        module="finance"
+        contextData={{
+          months: data.months.length,
+          transactions: data.transactions.length,
+          cashOnHand: data.cashOnHand,
+        }}
+      />
       {cashModal && <CashModal current={data.cashOnHand} onClose={() => setCashModal(false)} onSave={v => persist({ ...data, cashOnHand: v })} />}
-    </div>
+    </>
   )
 }

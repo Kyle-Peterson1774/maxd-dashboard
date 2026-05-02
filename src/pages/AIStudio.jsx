@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { useAuth } from '../lib/auth.jsx'
+import { streamChat } from '../lib/agentApi.js'
 
 // User-scoped keys — each team member has their own saved copies and recent list
 function copiesKey(email) { return `ai_copies:${email || 'shared'}` }
@@ -70,8 +71,6 @@ async function callAI(prompt, maxTokens = 1024) {
 }
 
 const inp = { display: 'block', width: '100%', marginTop: 4, padding: '0.45rem 0.6rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 14, boxSizing: 'border-box' }
-const btnPrimary = { background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, padding: '0.5rem 1.1rem', fontSize: 14, cursor: 'pointer', fontWeight: 600 }
-const btnGhost = { background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.5rem 1rem', fontSize: 14, cursor: 'pointer' }
 
 function TemplateCard({ tmpl, selected, onSelect, isRecent }) {
   return (
@@ -306,6 +305,7 @@ function AgentRunner({ agent }) {
   const [result, setResult] = useState('')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const streamRef = useRef('')
 
   const set = (k, v) => setFields(f => ({ ...f, [k]: v }))
 
@@ -313,11 +313,17 @@ function AgentRunner({ agent }) {
     const missing = agent.fields.filter(f => !fields[f.key]?.trim())
     if (missing.length) { setError(`Fill in: ${missing.map(f => f.label).join(', ')}`); return }
     setRunning(true); setResult(''); setError('')
-    try {
-      const text = await callAI(agent.buildPrompt(fields), 2048)
-      setResult(text)
-    } catch (e) { setError(e.message || 'Something went wrong') }
-    finally { setRunning(false) }
+    streamRef.current = ''
+    await streamChat({
+      messages: [{ role: 'user', content: agent.buildPrompt(fields) }],
+      maxTokens: 2048,
+      onToken: (token) => {
+        streamRef.current += token
+        setResult(streamRef.current)
+      },
+      onDone:  () => setRunning(false),
+      onError: (err) => { setError(err || 'Something went wrong'); setRunning(false) },
+    })
   }
 
   const copy = () => {
@@ -361,10 +367,9 @@ function AgentRunner({ agent }) {
           ))}
         </div>
         {error && <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 6, fontSize: 12, color: '#991b1b' }}>{error}</div>}
-        <button onClick={run} disabled={running || !apiKey} style={{ marginTop: '1rem', width: '100%', padding: '0.6rem', background: agent.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: running || !apiKey ? 'not-allowed' : 'pointer', opacity: running || !apiKey ? 0.6 : 1 }}>
-          {running ? '⏳ Running agent…' : `▶ Run ${agent.name}`}
+        <button onClick={run} disabled={running} style={{ marginTop: '1rem', width: '100%', padding: '0.6rem', background: agent.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: running ? 'not-allowed' : 'pointer', opacity: running ? 0.6 : 1 }}>
+          {running ? '⏳ Generating…' : `▶ Run ${agent.name}`}
         </button>
-        {!apiKey && <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>Connect Anthropic in Settings first</div>}
       </div>
 
       {/* Output panel */}
@@ -378,24 +383,31 @@ function AgentRunner({ agent }) {
             </div>
           </div>
         )}
-        {running && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 350, flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', border: `3px solid ${agent.color}33`, borderTopColor: agent.color, animation: 'spin 0.8s linear infinite' }} />
-            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Agent is working…</div>
+        {running && !result && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 80, gap: '0.75rem' }}>
+            <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${agent.color}33`, borderTopColor: agent.color, animation: 'spin 0.8s linear infinite' }} />
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Starting…</div>
           </div>
         )}
         {result && (
           <>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem', gap: '0.5rem' }}>
-              <button onClick={copy} style={{ padding: '0.35rem 0.8rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, cursor: 'pointer', color: 'var(--text-secondary)' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem', gap: '0.5rem', alignItems: 'center' }}>
+              {running && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)', marginRight: 'auto' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', border: `1.5px solid ${agent.color}55`, borderTopColor: agent.color, animation: 'spin 0.8s linear infinite' }} />
+                  Streaming…
+                </div>
+              )}
+              <button onClick={copy} className="btn btn-secondary" style={{ fontSize: 12, padding: '0.3rem 0.75rem' }}>
                 {copied ? '✅ Copied all' : '📋 Copy all'}
               </button>
-              <button onClick={() => setResult('')} style={{ padding: '0.35rem 0.8rem', background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <button onClick={() => setResult('')} disabled={running} className="btn btn-ghost" style={{ fontSize: 12, padding: '0.3rem 0.75rem', opacity: running ? 0.4 : 1 }}>
                 Clear
               </button>
             </div>
             <div style={{ lineHeight: 1.6 }}>
               {renderOutput(result)}
+              {running && <span style={{ display: 'inline-block', width: 2, height: 13, background: agent.color, marginLeft: 2, verticalAlign: 'middle', animation: 'agent-blink 0.75s steps(1) infinite' }} />}
             </div>
           </>
         )}
@@ -504,23 +516,25 @@ export default function AIStudio() {
   const deleteCopy = (id) => { const next = copies.filter(c => c.id !== id); setCopies(next); saveCopies(email, next) }
 
   const tabStyle = (t) => ({
-    padding: '0.45rem 1rem', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 500,
-    background: tab === t ? 'var(--navy)' : 'transparent',
-    color: tab === t ? '#fff' : 'var(--text-secondary)',
-    border: tab === t ? 'none' : '1px solid var(--border)',
+    padding: '0.4rem 0.9rem', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: tab === t ? 600 : 400,
+    background: tab === t ? 'var(--surface-2)' : 'transparent',
+    color: tab === t ? 'var(--text-primary)' : 'var(--text-secondary)',
+    border: 'none',
+    boxShadow: tab === t ? 'var(--shadow-sm)' : 'none',
+    transition: 'all 0.12s ease',
   })
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 1200, margin: '0 auto' }}>
+    <>
       <PageHeader title="AI Studio" subtitle="Generate on-brand copy for social, email, ads & more" />
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+      <div style={{ display: 'flex', gap: 3, marginBottom: '1.25rem', background: 'var(--surface-3)', padding: 3, borderRadius: 8, width: 'fit-content' }}>
         <button style={tabStyle('agents')} onClick={() => setTab('agents')}>
           🤖 Agents <span style={{ fontSize: 10, background: '#E21B4D', color: '#fff', padding: '1px 5px', borderRadius: 4, marginLeft: 4, fontWeight: 700 }}>NEW</span>
         </button>
         <button style={tabStyle('generate')} onClick={() => setTab('generate')}>✨ Templates</button>
         <button style={tabStyle('saved')} onClick={() => setTab('saved')}>
-          📋 Saved {copies.length > 0 && <span style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 99, padding: '0 6px', marginLeft: 4, fontSize: 12 }}>{copies.length}</span>}
+          📋 Saved {copies.length > 0 && <span style={{ background: 'var(--border)', borderRadius: 99, padding: '0 6px', marginLeft: 4, fontSize: 12 }}>{copies.length}</span>}
         </button>
       </div>
 
@@ -530,9 +544,9 @@ export default function AIStudio() {
         <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '1.25rem', alignItems: 'start' }}>
           {/* Template browser */}
           <div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: '0.75rem', background: 'var(--surface-3)', padding: 3, borderRadius: 8 }}>
               {CATEGORIES.map(c => (
-                <button key={c} onClick={() => setCatFilter(c)} style={{ padding: '0.3rem 0.65rem', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: catFilter === c ? 600 : 400, background: catFilter === c ? 'var(--navy)' : 'var(--surface-3)', color: catFilter === c ? '#fff' : 'var(--text-secondary)', border: 'none' }}>
+                <button key={c} onClick={() => setCatFilter(c)} style={{ padding: '0.3rem 0.65rem', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: catFilter === c ? 600 : 400, background: catFilter === c ? 'var(--surface-2)' : 'transparent', color: catFilter === c ? 'var(--text-primary)' : 'var(--text-secondary)', border: 'none', boxShadow: catFilter === c ? 'var(--shadow-sm)' : 'none', transition: 'all 0.12s ease' }}>
                   {CAT_ICONS[c]} {c}
                 </button>
               ))}
@@ -586,7 +600,7 @@ export default function AIStudio() {
                 </div>
               )}
 
-              <button onClick={generate} disabled={loading || !selectedTmpl} style={{ ...btnPrimary, marginTop: '0.75rem', opacity: !selectedTmpl ? 0.5 : 1, width: '100%' }}>
+              <button onClick={generate} disabled={loading || !selectedTmpl} className="btn btn-primary" style={{ marginTop: '0.75rem', opacity: !selectedTmpl ? 0.5 : 1, width: '100%' }}>
                 {loading ? '⏳ Generating…' : '✨ Generate Copy'}
               </button>
             </div>
@@ -598,9 +612,9 @@ export default function AIStudio() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Output</div>
                 <textarea readOnly value={output} style={{ ...inp, minHeight: 180, resize: 'vertical', lineHeight: 1.6, fontFamily: 'inherit', marginTop: 0 }} />
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                  <button onClick={copyToClipboard} style={btnPrimary}>{copied ? '✅ Copied!' : '📋 Copy'}</button>
-                  <button onClick={saveCopy} style={btnGhost}>{savedFlash ? '✅ Saved!' : '💾 Save'}</button>
-                  <button onClick={() => { setOutput(''); setError('') }} style={{ ...btnGhost, marginLeft: 'auto' }}>Clear</button>
+                  <button onClick={copyToClipboard} className="btn btn-primary">{copied ? '✅ Copied!' : '📋 Copy'}</button>
+                  <button onClick={saveCopy} className="btn btn-secondary">{savedFlash ? '✅ Saved!' : '💾 Save'}</button>
+                  <button onClick={() => { setOutput(''); setError('') }} className="btn btn-ghost" style={{ marginLeft: 'auto' }}>Clear</button>
                 </div>
               </div>
             )}
@@ -618,7 +632,7 @@ export default function AIStudio() {
           ) : (
             <>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
-                <button onClick={() => { setCopies([]); saveCopies(email, []) }} style={{ ...btnGhost, color: 'var(--red)', borderColor: 'var(--red)', fontSize: 12 }}>Clear All</button>
+                <button onClick={() => { setCopies([]); saveCopies(email, []) }} className="btn btn-ghost" style={{ color: 'var(--red)', fontSize: 12 }}>Clear All</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {copies.map(c => (
@@ -634,8 +648,8 @@ export default function AIStudio() {
                       {c.text}
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem' }}>
-                      <button onClick={() => navigator.clipboard.writeText(c.text)} style={{ ...btnGhost, fontSize: 12, padding: '0.3rem 0.75rem' }}>📋 Copy</button>
-                      <button onClick={() => deleteCopy(c.id)} style={{ ...btnGhost, fontSize: 12, padding: '0.3rem 0.75rem', color: 'var(--red)', borderColor: 'var(--red)' }}>Delete</button>
+                      <button onClick={() => navigator.clipboard.writeText(c.text)} className="btn btn-secondary" style={{ fontSize: 12, padding: '0.3rem 0.75rem' }}>📋 Copy</button>
+                      <button onClick={() => deleteCopy(c.id)} className="btn btn-ghost" style={{ fontSize: 12, padding: '0.3rem 0.75rem', color: 'var(--red)' }}>Delete</button>
                     </div>
                   </div>
                 ))}
@@ -644,6 +658,6 @@ export default function AIStudio() {
           )}
         </div>
       )}
-    </div>
+    </>
   )
 }

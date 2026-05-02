@@ -1,5 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import PageHeader from '../components/ui/PageHeader.jsx'
+import StatCard from '../components/ui/StatCard.jsx'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 import { dbSet, dbGet } from '../lib/db.js'
 import { getCredentials, isConnected } from '../lib/credentials.js'
 import { useAuth } from '../lib/auth.jsx'
@@ -63,8 +66,6 @@ export function pushToQueue(item) {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const inp = { display: 'block', width: '100%', marginTop: 4, padding: '0.5rem 0.65rem', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 14, boxSizing: 'border-box' }
-const btnPrimary = { background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 6, padding: '0.45rem 1rem', fontSize: 13, cursor: 'pointer', fontWeight: 600 }
-const btnGhost = { background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.45rem 0.9rem', fontSize: 13, cursor: 'pointer' }
 
 // ── Platform dispatchers ────────────────────────────────────────────────────
 async function dispatchInstagram(item) {
@@ -256,21 +257,21 @@ function ItemModal({ item, onClose, onUpdate, onDelete }) {
         {/* Actions */}
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
           {form.status === 'pending' && (
-            <button onClick={handleApproveAndSend} disabled={sending} style={{ ...btnPrimary, background: type.color, opacity: sending ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button onClick={handleApproveAndSend} disabled={sending} className="btn btn-primary" style={{ background: type.color, opacity: sending ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
               {sending ? '⏳ Sending…' : `${type.icon} Approve & Send`}
             </button>
           )}
           {form.status === 'failed' && (
-            <button onClick={handleApproveAndSend} disabled={sending} style={{ ...btnPrimary, background: '#ef4444' }}>
+            <button onClick={handleApproveAndSend} disabled={sending} className="btn btn-primary" style={{ background: '#ef4444' }}>
               {sending ? '⏳ Retrying…' : '↺ Retry'}
             </button>
           )}
-          <button onClick={copyContent} style={btnGhost}>{copied ? '✅ Copied' : '📋 Copy Content'}</button>
-          <button onClick={() => { onUpdate({ ...form }); onClose() }} style={btnGhost}>Save Edits</button>
+          <button onClick={copyContent} className="btn btn-secondary">{copied ? '✅ Copied' : '📋 Copy Content'}</button>
+          <button onClick={() => { onUpdate({ ...form }); onClose() }} className="btn btn-secondary">Save Edits</button>
           {form.status === 'pending' && (
-            <button onClick={() => { onUpdate({ ...form, status: 'rejected' }); onClose() }} style={{ ...btnGhost, color: 'var(--text-muted)' }}>Reject</button>
+            <button onClick={() => { onUpdate({ ...form, status: 'rejected' }); onClose() }} className="btn btn-ghost">Reject</button>
           )}
-          <button onClick={() => { onDelete(item.id); onClose() }} style={{ ...btnGhost, marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>
+          <button onClick={() => { onDelete(item.id); onClose() }} className="btn btn-ghost" style={{ marginLeft: 'auto', color: 'var(--red)' }}>Delete</button>
         </div>
       </div>
     </div>
@@ -322,8 +323,8 @@ function AddItemModal({ onClose, onAdd }) {
           <input value={form.notes} onChange={e => set('notes', e.target.value)} style={inp} />
         </label>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-          <button onClick={() => { onAdd({ type, ...form }); onClose() }} style={{ ...btnPrimary, background: t.color }}>Add to Queue</button>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
+          <button onClick={() => { onAdd({ type, ...form }); onClose() }} className="btn btn-primary" style={{ background: t.color }}>Add to Queue</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
         </div>
       </div>
     </div>
@@ -353,9 +354,9 @@ function ConnectionBar() {
     <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 10, padding: '0.75rem 1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
       <span style={{ fontSize: 13, color: '#92400e', fontWeight: 600 }}>⚡ Connect platforms to enable one-click posting:</span>
       {notConnected.map(p => (
-        <a key={p.key} href="/#/settings" style={{ fontSize: 12, padding: '3px 10px', background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 6, color: '#92400e', textDecoration: 'none', fontWeight: 500 }}>
+        <Link key={p.key} to="/settings" style={{ fontSize: 12, padding: '3px 10px', background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 6, color: '#92400e', textDecoration: 'none', fontWeight: 500 }}>
           {p.icon} Connect {p.label}
-        </a>
+        </Link>
       ))}
       {connected.length > 0 && <span style={{ fontSize: 12, color: '#22c55e' }}>✓ {connected.map(p => p.label).join(', ')} connected</span>}
     </div>
@@ -418,7 +419,7 @@ export default function Queue() {
   const sent = data.items.filter(i => i.status === 'sent').length
 
   const filterBtn = (val, label) => (
-    <button onClick={() => setFilter(val)} style={{ padding: '0.3rem 0.75rem', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: filter === val ? 600 : 400, background: filter === val ? 'var(--navy)' : 'var(--surface-3)', color: filter === val ? '#fff' : 'var(--text-secondary)', border: 'none' }}>
+    <button onClick={() => setFilter(val)} style={{ padding: '0.3rem 0.75rem', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: filter === val ? 600 : 400, background: filter === val ? 'var(--surface-2)' : 'transparent', color: filter === val ? 'var(--text-primary)' : 'var(--text-secondary)', border: 'none', boxShadow: filter === val ? 'var(--shadow-sm)' : 'none', transition: 'all 0.12s ease' }}>
       {label}
     </button>
   )
@@ -430,28 +431,21 @@ export default function Queue() {
   )
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 1100, margin: '0 auto' }}>
+    <>
       <PageHeader title="Action Queue" subtitle="Review and approve AI-generated content before it goes out" />
 
       <ConnectionBar />
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
-        {[
-          { label: 'Pending Review', value: pending, color: '#f59e0b' },
-          { label: 'Sent / Posted',  value: sent,    color: '#22c55e' },
-          { label: 'Total in Queue', value: data.items.length, color: 'var(--navy)' },
-        ].map(({ label, value, color }) => (
-          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '0.875rem', textAlign: 'center' }}>
-            <div style={{ fontSize: 24, fontWeight: 700, color, fontFamily: 'Oswald, sans-serif' }}>{value}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{label}</div>
-          </div>
-        ))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '1.25rem' }}>
+        <StatCard label="Pending Review" value={pending} accent="#f59e0b" />
+        <StatCard label="Sent / Posted" value={sent} accent="#22c55e" />
+        <StatCard label="Total in Queue" value={data.items.length} accent="var(--navy)" />
       </div>
 
       {/* Filters + Add */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 3 }}>
+        <div style={{ display: 'flex', gap: 3, background: 'var(--surface-3)', padding: 3, borderRadius: 8 }}>
           {filterBtn('all', `All (${data.items.length})`)}
           {filterBtn('pending', `Pending (${pending})`)}
           {filterBtn('approved', 'Approved')}
@@ -465,7 +459,7 @@ export default function Queue() {
           {platBtn('email', 'Email', '✉️')}
           {platBtn('sales', 'Sales', '📬')}
         </div>
-        <button onClick={() => setAddModal(true)} style={{ marginLeft: 'auto', ...btnPrimary }}>+ Add to Queue</button>
+        <button onClick={() => setAddModal(true)} className="btn btn-primary" style={{ marginLeft: 'auto' }}>+ Add to Queue</button>
       </div>
 
       {/* Queue items */}
@@ -517,6 +511,16 @@ export default function Queue() {
       {/* Modals */}
       {selectedItem && <ItemModal item={selectedItem} onClose={() => setSelectedItem(null)} onUpdate={(updated) => { updateItem(updated); setSelectedItem(updated) }} onDelete={deleteItem} />}
       {addModal && <AddItemModal onClose={() => setAddModal(false)} onAdd={addItem} />}
-    </div>
+
+      <AgentPanel
+        module="queue"
+        contextData={{
+          totalItems: data.items.length,
+          pending,
+          sent,
+          recentPending: data.items.filter(i => i.status === 'pending').slice(0, 5).map(i => ({ type: i.type, title: i.title || i.caption || i.subject })),
+        }}
+      />
+    </>
   )
 }

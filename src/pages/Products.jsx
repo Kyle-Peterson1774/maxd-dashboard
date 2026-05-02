@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import PageHeader from '../components/ui/PageHeader.jsx'
 import { dbSet, dbGet } from '../lib/db.js'
+import AgentPanel from '../components/ui/AgentPanel.jsx'
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 const STORE_KEY = 'maxd_products'
@@ -464,6 +465,13 @@ export default function Products() {
           {filtered.map(p => <ProductCard key={p.id} product={p} onSelect={setSelected} />)}
         </div>
       )}
+      <AgentPanel
+        module="products"
+        contextData={{
+          total: products.length,
+          active: products.filter(p => p.status === 'active').length,
+        }}
+      />
     </div>
   )
 }
