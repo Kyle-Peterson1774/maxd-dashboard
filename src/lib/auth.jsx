@@ -168,32 +168,26 @@ function LoginPage({ onLogin }) {
 
   // ── Shared styles ──────────────────────────────────────────────────────────
   const S = {
-    page:  { minHeight: '100vh', background: '#0B111E', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', fontFamily: 'Inter, system-ui, sans-serif' },
-    wrap:  { width: '100%', maxWidth: 420 },
-    card:  { background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '2rem' },
-    inp:   { display: 'block', width: '100%', marginTop: 6, padding: '0.65rem 0.875rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 9, color: '#fff', fontSize: 14, boxSizing: 'border-box', outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: 'Inter, sans-serif' },
-    label: { display: 'block', fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.02em' },
-    btn:   { marginTop: '1.25rem', width: '100%', padding: '0.75rem', background: '#E21B4D', color: '#fff', border: 'none', borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: loading ? 'wait' : 'pointer', letterSpacing: '0.02em', fontFamily: 'Inter, sans-serif', opacity: loading ? 0.7 : 1, transition: 'background 0.15s, transform 0.1s', boxShadow: '0 2px 12px rgba(226,27,77,0.3)' },
-    link:  { background: 'none', border: 'none', color: '#E21B4D', cursor: 'pointer', fontSize: 13, padding: 0, fontFamily: 'Inter, sans-serif' },
-    err:   { marginTop: '1rem', padding: '0.65rem 0.875rem', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, fontSize: 13, color: '#fca5a5', lineHeight: 1.5 },
-    ok:    { marginTop: '1rem', padding: '0.65rem 0.875rem', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, fontSize: 13, color: '#86efac', lineHeight: 1.5 },
+    inp:   { display: 'block', width: '100%', padding: '0.7rem 0.875rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, color: '#fff', fontSize: 14, boxSizing: 'border-box', outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: 'Inter, sans-serif' },
+    label: { display: 'block', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 6 },
+    btn:   { marginTop: '1.25rem', width: '100%', padding: '0.8rem', background: 'linear-gradient(135deg, #E21B4D 0%, #c9163f 100%)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: loading ? 'wait' : 'pointer', letterSpacing: '0.02em', fontFamily: 'Inter, sans-serif', opacity: loading ? 0.7 : 1, transition: 'all 0.18s', boxShadow: '0 4px 20px rgba(226,27,77,0.35), 0 1px 4px rgba(0,0,0,0.2)' },
+    link:  { background: 'none', border: 'none', color: '#E21B4D', cursor: 'pointer', fontSize: 13, padding: 0, fontFamily: 'Inter, sans-serif', fontWeight: 500 },
+    err:   { marginTop: '1rem', padding: '0.7rem 0.875rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 10, fontSize: 13, color: '#fca5a5', lineHeight: 1.5 },
+    ok:    { marginTop: '1rem', padding: '0.7rem 0.875rem', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.18)', borderRadius: 10, fontSize: 13, color: '#86efac', lineHeight: 1.5 },
   }
 
-  const Logo = () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '2rem' }}>
-      <svg width="30" height="22" viewBox="0 0 24 18" fill="none">
-        <path d="M0 18 L8 2 L12 9 L14 6 L24 18Z" fill="#E21B4D" opacity="0.95"/>
-        <path d="M12 9 L14 6 L24 18 L12 18Z" fill="#E21B4D" opacity="0.42"/>
-      </svg>
-      <span style={{ fontFamily: 'Oswald, sans-serif', color: '#fff', fontSize: 21, fontWeight: 700, letterSpacing: '0.14em' }}>MAXD</span>
-    </div>
+  const LogoMark = ({ size = 30 }) => (
+    <svg width={size} height={Math.round(size * 0.73)} viewBox="0 0 24 18" fill="none">
+      <path d="M0 18 L8 2 L12 9 L14 6 L24 18Z" fill="#E21B4D" opacity="0.95"/>
+      <path d="M12 9 L14 6 L24 18 L12 18Z" fill="#E21B4D" opacity="0.42"/>
+    </svg>
   )
 
   const Field = ({ label, ...props }) => (
     <label style={{ display: 'block' }}>
       <span style={S.label}>{label}</span>
-      <input {...props} style={{ ...S.inp, marginTop: 6 }}
-        onFocus={e => { e.target.style.borderColor = 'rgba(226,27,77,0.6)'; e.target.style.boxShadow = '0 0 0 3px rgba(226,27,77,0.12)' }}
+      <input {...props} style={S.inp}
+        onFocus={e => { e.target.style.borderColor = 'rgba(226,27,77,0.55)'; e.target.style.boxShadow = '0 0 0 3px rgba(226,27,77,0.12)' }}
         onBlur={e  => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none' }}
       />
     </label>
@@ -201,12 +195,15 @@ function LoginPage({ onLogin }) {
 
   // ── Recover password ────────────────────────────────────────────────────────
   if (mode === 'recover') return (
-    <div style={S.page}>
-      <div style={S.wrap}>
-        <Logo />
-        <div style={S.card}>
-          <h2 style={{ margin: '0 0 0.375rem', color: '#fff', fontSize: 20, fontWeight: 600, fontFamily: 'Oswald, sans-serif', letterSpacing: '0.04em' }}>Set a new password</h2>
-          <p style={{ margin: '0 0 1.5rem', fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }}>Choose a strong password for your account.</p>
+    <div style={{ minHeight: '100vh', background: '#080E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '2.5rem' }}>
+          <LogoMark size={28} />
+          <span style={{ fontFamily: 'Oswald, sans-serif', color: '#fff', fontSize: 20, fontWeight: 700, letterSpacing: '0.14em' }}>MAXD</span>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '2rem' }}>
+          <h2 style={{ margin: '0 0 0.375rem', color: '#fff', fontSize: 22, fontWeight: 700, fontFamily: 'Oswald, sans-serif', letterSpacing: '0.04em' }}>Set a new password</h2>
+          <p style={{ margin: '0 0 1.5rem', fontSize: 13, color: 'rgba(255,255,255,0.38)', lineHeight: 1.6 }}>Choose a strong password for your account.</p>
           <div style={{ display: 'grid', gap: '1rem' }}>
             <Field label="New Password" type="password" value={newPassword} onChange={e => setNewPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleRecover()} placeholder="Min 8 characters" />
             <Field label="Confirm Password" type="password" value={confirmPass} onChange={e => setConfirm(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleRecover()} placeholder="••••••••" />
@@ -221,18 +218,21 @@ function LoginPage({ onLogin }) {
 
   // ── Forgot password ─────────────────────────────────────────────────────────
   if (mode === 'forgot') return (
-    <div style={S.page}>
-      <div style={S.wrap}>
-        <Logo />
-        <div style={S.card}>
-          <h2 style={{ margin: '0 0 0.375rem', color: '#fff', fontSize: 20, fontWeight: 600, fontFamily: 'Oswald, sans-serif', letterSpacing: '0.04em' }}>Reset your password</h2>
-          <p style={{ margin: '0 0 1.5rem', fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }}>Enter your email and we'll send a reset link.</p>
+    <div style={{ minHeight: '100vh', background: '#080E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '2.5rem' }}>
+          <LogoMark size={28} />
+          <span style={{ fontFamily: 'Oswald, sans-serif', color: '#fff', fontSize: 20, fontWeight: 700, letterSpacing: '0.14em' }}>MAXD</span>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '2rem' }}>
+          <h2 style={{ margin: '0 0 0.375rem', color: '#fff', fontSize: 22, fontWeight: 700, fontFamily: 'Oswald, sans-serif', letterSpacing: '0.04em' }}>Reset your password</h2>
+          <p style={{ margin: '0 0 1.5rem', fontSize: 13, color: 'rgba(255,255,255,0.38)', lineHeight: 1.6 }}>Enter your email and we'll send a reset link.</p>
           <Field label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleForgot()} placeholder="you@company.com" />
           {error && <div style={S.err}>{error}</div>}
           {successMsg && <div style={S.ok}>{successMsg}</div>}
           <button onClick={handleForgot} disabled={loading} style={S.btn}>{loading ? 'Sending…' : 'Send Reset Link'}</button>
           <div style={{ marginTop: '1.25rem', textAlign: 'center' }}>
-            <button onClick={() => { setMode('login'); setError(''); setSuccess('') }} style={{ ...S.link, color: 'rgba(255,255,255,0.35)', fontSize: 12.5 }}>← Back to sign in</button>
+            <button onClick={() => { setMode('login'); setError(''); setSuccess('') }} style={{ ...S.link, color: 'rgba(255,255,255,0.3)', fontSize: 12.5 }}>← Back to sign in</button>
           </div>
         </div>
       </div>
@@ -241,98 +241,126 @@ function LoginPage({ onLogin }) {
 
   // ── Login / Signup ──────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', background: '#0B111E', display: 'flex', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#080E1A', display: 'flex', fontFamily: 'Inter, system-ui, sans-serif' }}>
 
-      {/* Left panel — brand (hidden on small screens) */}
-      <div style={{ flex: '0 0 420px', background: 'linear-gradient(160deg, #0F1929 0%, #141F36 60%, #1a1040 100%)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '3rem', borderRight: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden' }} className="login-panel">
-        {/* Subtle grid bg */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '40px 40px', pointerEvents: 'none' }} />
+      {/* Left panel — brand */}
+      <div style={{ flex: '0 0 440px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '3rem', position: 'relative', overflow: 'hidden' }} className="login-panel">
+
+        {/* Layered background */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #0C1525 0%, #101D35 50%, #0D1220 100%)' }} />
+        {/* Grid overlay */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '36px 36px', pointerEvents: 'none' }} />
+        {/* Red glow orb — bottom left */}
+        <div style={{ position: 'absolute', bottom: -80, left: -80, width: 360, height: 360, background: 'radial-gradient(circle, rgba(226,27,77,0.14) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        {/* Subtle top-right accent */}
+        <div style={{ position: 'absolute', top: -60, right: -60, width: 240, height: 240, background: 'radial-gradient(circle, rgba(37,99,235,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        {/* Right border */}
+        <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 1, background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent)' }} />
 
         <div style={{ position: 'relative' }}>
+          {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '3.5rem' }}>
-            <svg width="32" height="24" viewBox="0 0 24 18" fill="none">
-              <path d="M0 18 L8 2 L12 9 L14 6 L24 18Z" fill="#E21B4D" opacity="0.95"/>
-              <path d="M12 9 L14 6 L24 18 L12 18Z" fill="#E21B4D" opacity="0.42"/>
-            </svg>
+            <LogoMark size={32} />
             <span style={{ fontFamily: 'Oswald, sans-serif', color: '#fff', fontSize: 22, fontWeight: 700, letterSpacing: '0.14em' }}>MAXD</span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.12em', marginLeft: 2, marginTop: 2 }}>BUSINESS OS</span>
           </div>
 
-          <div style={{ marginBottom: '3rem' }}>
-            <h1 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 36, fontWeight: 700, color: '#fff', lineHeight: 1.15, letterSpacing: '0.02em', margin: '0 0 1rem' }}>
-              Your brand,<br />fully in control.
+          {/* Headline */}
+          <div style={{ marginBottom: '2.5rem' }}>
+            <h1 style={{ fontFamily: 'Oswald, sans-serif', fontSize: 38, fontWeight: 700, color: '#fff', lineHeight: 1.1, letterSpacing: '0.01em', margin: '0 0 1rem' }}>
+              Your brand,<br />
+              <span style={{ color: '#E21B4D' }}>fully in control.</span>
             </h1>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, margin: 0 }}>
-              One platform for content, growth, operations, and AI — built for DTC brands that move fast.
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', lineHeight: 1.7, margin: 0 }}>
+              One OS for content, growth, ops, and AI — built for DTC brands that move fast.
             </p>
           </div>
 
-          {[
-            { icon: '✦', label: 'AI Studio', desc: 'Generate copy, run agents, automate workflows' },
-            { icon: '◈', label: 'Live Analytics', desc: 'Shopify, Meta Ads, Klaviyo — all in one view' },
-            { icon: '◻', label: 'Content Engine', desc: 'Calendar, scripts, and social scheduling' },
-          ].map(f => (
-            <div key={f.label} style={{ display: 'flex', gap: 14, marginBottom: '1.25rem' }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(226,27,77,0.12)', border: '1px solid rgba(226,27,77,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: '#E21B4D', flexShrink: 0 }}>{f.icon}</div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginBottom: 2 }}>{f.label}</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>{f.desc}</div>
+          {/* Feature list */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2.5rem' }}>
+            {[
+              { icon: '◈', label: 'Live Data Hub', desc: 'Shopify · Meta Ads · Klaviyo · TikTok in one view', color: '#2563EB' },
+              { icon: '✦', label: 'AI Studio', desc: 'Script generation, agents, and automated workflows', color: '#E21B4D' },
+              { icon: '◻', label: 'Content Engine', desc: 'Calendar, pipeline tracking, and social scheduling', color: '#059669' },
+            ].map(f => (
+              <div key={f.label} style={{ display: 'flex', gap: 13, alignItems: 'flex-start' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 9, background: `${f.color}18`, border: `1px solid ${f.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: f.color, flexShrink: 0, marginTop: 1 }}>{f.icon}</div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.88)', marginBottom: 2 }}>{f.label}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.32)', lineHeight: 1.5 }}>{f.desc}</div>
+                </div>
               </div>
+            ))}
+          </div>
+
+          {/* Platform pills */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.22)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>Integrates with</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {['Shopify', 'Meta Ads', 'Klaviyo', 'TikTok', 'Google', 'Notion', 'Make'].map(p => (
+                <span key={p} style={{ fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 20, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.35)' }}>{p}</span>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
 
-        <div style={{ position: 'relative', fontSize: 11, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.04em' }}>
-          © {new Date().getFullYear()} MAXD Wellness. All rights reserved.
+        <div style={{ position: 'relative', fontSize: 11, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.04em' }}>
+          © {new Date().getFullYear()} MAXD Wellness · All rights reserved
         </div>
       </div>
 
       {/* Right panel — form */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-        <div style={{ width: '100%', maxWidth: 400 }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', background: '#080E1A' }}>
+        <div style={{ width: '100%', maxWidth: 390 }}>
+
           {/* Mobile logo */}
           <div style={{ display: 'none', alignItems: 'center', gap: 10, marginBottom: '2rem' }} className="login-mobile-logo">
-            <svg width="28" height="21" viewBox="0 0 24 18" fill="none">
-              <path d="M0 18 L8 2 L12 9 L14 6 L24 18Z" fill="#E21B4D" opacity="0.95"/>
-              <path d="M12 9 L14 6 L24 18 L12 18Z" fill="#E21B4D" opacity="0.42"/>
-            </svg>
+            <LogoMark size={26} />
             <span style={{ fontFamily: 'Oswald, sans-serif', color: '#fff', fontSize: 20, fontWeight: 700, letterSpacing: '0.14em' }}>MAXD</span>
           </div>
 
-          <h2 style={{ margin: '0 0 0.375rem', color: '#fff', fontSize: 22, fontWeight: 600, fontFamily: 'Oswald, sans-serif', letterSpacing: '0.04em' }}>
-            {mode === 'login' ? 'Welcome back' : 'Create your account'}
-          </h2>
-          <p style={{ margin: '0 0 1.75rem', fontSize: 13, color: 'rgba(255,255,255,0.38)', lineHeight: 1.5 }}>
-            {mode === 'login' ? 'Sign in to your workspace.' : 'Your first sign-up creates a new workspace.'}
-          </p>
-
-          <div style={{ display: 'grid', gap: '1rem' }}>
-            {mode === 'signup' && (
-              <Field label="Full Name" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} placeholder="First Last" />
-            )}
-            <Field label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} placeholder="you@company.com" />
-            <div>
-              <Field label="Password" type="password" value={password} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} placeholder="••••••••" />
-              {mode === 'login' && (
-                <div style={{ marginTop: 6, textAlign: 'right' }}>
-                  <button onClick={() => { setMode('forgot'); setError(''); setSuccess('') }} style={{ ...S.link, fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-                    Forgot password?
-                  </button>
-                </div>
-              )}
-            </div>
+          {/* Heading */}
+          <div style={{ marginBottom: '2rem' }}>
+            <h2 style={{ margin: '0 0 6px', color: '#fff', fontSize: 26, fontWeight: 700, fontFamily: 'Oswald, sans-serif', letterSpacing: '0.03em' }}>
+              {mode === 'login' ? 'Welcome back' : 'Create your account'}
+            </h2>
+            <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>
+              {mode === 'login' ? 'Sign in to your workspace.' : 'Your first sign-up creates a new workspace.'}
+            </p>
           </div>
 
-          {error && <div style={S.err}>{error}</div>}
-          {successMsg && <div style={S.ok}>{successMsg}</div>}
+          {/* Form card */}
+          <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '1.75rem' }}>
+            <div style={{ display: 'grid', gap: '1.1rem' }}>
+              {mode === 'signup' && (
+                <Field label="Full Name" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} placeholder="First Last" autoComplete="name" />
+              )}
+              <Field label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} placeholder="you@company.com" autoComplete="email" />
+              <div>
+                <Field label="Password" type="password" value={password} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} placeholder="••••••••" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+                {mode === 'login' && (
+                  <div style={{ marginTop: 8, textAlign: 'right' }}>
+                    <button onClick={() => { setMode('forgot'); setError(''); setSuccess('') }} style={{ ...S.link, fontSize: 12, color: 'rgba(255,255,255,0.28)' }}>
+                      Forgot password?
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
 
-          <button onClick={handle} disabled={loading} style={S.btn}>
-            {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
-          </button>
+            {error && <div style={S.err}>{error}</div>}
+            {successMsg && <div style={S.ok}>{successMsg}</div>}
 
-          <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>
+            <button onClick={handle} disabled={loading} style={S.btn}>
+              {loading ? 'Please wait…' : mode === 'login' ? 'Sign In →' : 'Create Account →'}
+            </button>
+          </div>
+
+          {/* Mode switch */}
+          <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.28)' }}>
             {mode === 'login' ? 'New to MAXD? ' : 'Already have an account? '}
             <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccess('') }} style={S.link}>
-              {mode === 'login' ? 'Sign up' : 'Sign in'}
+              {mode === 'login' ? 'Sign up free' : 'Sign in'}
             </button>
           </div>
         </div>
