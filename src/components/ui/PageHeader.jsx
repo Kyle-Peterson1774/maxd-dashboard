@@ -1,37 +1,59 @@
-export default function PageHeader({ title, subtitle, tag, children }) {
+/**
+ * PageHeader
+ * Props:
+ *   title    — page name (displayed uppercase in Oswald)
+ *   subtitle — optional description line
+ *   tag      — small colored section label (e.g. "Content · Social")
+ *   accent   — CSS color for left accent bar (defaults to var(--blue))
+ *   children — action buttons / controls on the right
+ */
+export default function PageHeader({ title, subtitle, tag, accent, children }) {
+  const bar = accent || 'var(--blue)'
+
   return (
     <div style={{
       display: 'flex',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
-      marginBottom: '2rem',
-      paddingBottom: '1.5rem',
-      borderBottom: '1px solid var(--border)',
+      marginBottom: '1.75rem',
       gap: 16,
+      animation: 'fadeUp 0.3s ease both',
     }}>
-      <div>
+      {/* Left accent bar */}
+      <div style={{
+        width: 4,
+        borderRadius: 4,
+        background: bar,
+        alignSelf: 'stretch',
+        minHeight: 40,
+        flexShrink: 0,
+        opacity: 0.85,
+      }} />
+
+      {/* Title block */}
+      <div style={{ flex: 1 }}>
         {tag && (
           <div style={{
             fontSize: 10,
             fontWeight: 700,
-            color: 'var(--text-muted)',
+            color: bar === 'var(--blue)' ? 'var(--blue-text)' : 'var(--text-muted)',
             textTransform: 'uppercase',
-            letterSpacing: '0.12em',
+            letterSpacing: '0.14em',
             fontFamily: 'var(--font-body)',
-            marginBottom: 6,
+            marginBottom: 5,
           }}>
             {tag}
           </div>
         )}
         <h1 style={{
-          fontSize: 21,
+          fontSize: 26,
           fontWeight: 700,
-          letterSpacing: '0.06em',
+          letterSpacing: '0.05em',
           color: 'var(--navy)',
           fontFamily: 'var(--font-heading)',
           textTransform: 'uppercase',
-          lineHeight: 1.1,
-          marginBottom: subtitle ? 5 : 0,
+          lineHeight: 1.05,
+          marginBottom: subtitle ? 6 : 0,
         }}>
           {title}
         </h1>
@@ -47,6 +69,8 @@ export default function PageHeader({ title, subtitle, tag, children }) {
           </p>
         )}
       </div>
+
+      {/* Actions */}
       {children && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
           {children}
