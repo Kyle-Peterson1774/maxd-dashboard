@@ -297,44 +297,110 @@ function buildActivityFeed(scripts, content, queue) {
   return events.sort((a, b) => (b.ts||'').localeCompare(a.ts||'')).slice(0, 6)
 }
 
-// ─── Brand Banner ─────────────────────────────────────────────────────────────
-function BrandBanner() {
-  const today   = new Date()
-  const weekday = today.toLocaleDateString('en-US', { weekday: 'long' })
-  const date    = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+// ─── Hero Banner ──────────────────────────────────────────────────────────────
+const HERO_DOTS = [
+  { s: 10, t: '14%',  l: '7%',  c: 'rgba(79,110,247,0.28)',  d: '0s',    dur: '6s'   },
+  { s: 6,  t: '72%',  l: '11%', c: 'rgba(124,58,237,0.22)',  d: '1.1s',  dur: '8.2s' },
+  { s: 14, t: '22%',  l: '76%', c: 'rgba(12,166,120,0.22)',  d: '0.4s',  dur: '7.1s' },
+  { s: 8,  t: '68%',  l: '83%', c: 'rgba(226,27,77,0.20)',   d: '2.2s',  dur: '9s'   },
+  { s: 5,  t: '42%',  l: '91%', c: 'rgba(79,110,247,0.16)',  d: '1.6s',  dur: '5.8s' },
+  { s: 11, t: '82%',  l: '53%', c: 'rgba(217,119,6,0.20)',   d: '0.7s',  dur: '7.6s' },
+  { s: 7,  t: '9%',   l: '43%', c: 'rgba(124,58,237,0.16)',  d: '2.6s',  dur: '6.4s' },
+  { s: 9,  t: '56%',  l: '2%',  c: 'rgba(12,166,120,0.16)',  d: '1.3s',  dur: '8.7s' },
+  { s: 4,  t: '33%',  l: '62%', c: 'rgba(79,110,247,0.12)',  d: '3s',    dur: '7.9s' },
+  { s: 6,  t: '88%',  l: '28%', c: 'rgba(226,27,77,0.14)',   d: '0.9s',  dur: '6.8s' },
+]
+
+function HeroBanner({ biz, user }) {
+  const today     = new Date()
+  const hour      = today.getHours()
+  const greeting  = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const firstName = (user?.name || user?.email || 'Kyle').split(/[\s@]/)[0]
+  const weekday   = today.toLocaleDateString('en-US', { weekday: 'long' })
+  const date      = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+
+  const kpis = [
+    { label: 'Revenue',   value: moneyFmt(biz.monthlyRevenue),       color: '#0CA678', bg: 'rgba(12,166,120,0.09)',  border: 'rgba(12,166,120,0.18)'  },
+    { label: 'Followers', value: fmtFollowers(biz.totalFollowers),   color: '#7C3AED', bg: 'rgba(124,58,237,0.09)', border: 'rgba(124,58,237,0.18)' },
+    { label: 'Cash',      value: moneyFmt(biz.cashOnHand),           color: '#4F6EF7', bg: 'rgba(79,110,247,0.09)',  border: 'rgba(79,110,247,0.18)'  },
+    { label: 'Net Profit',value: moneyFmt(biz.netProfit),            color: biz.netProfit >= 0 ? '#0CA678' : '#E21B4D', bg: biz.netProfit >= 0 ? 'rgba(12,166,120,0.09)' : 'rgba(226,27,77,0.08)', border: biz.netProfit >= 0 ? 'rgba(12,166,120,0.18)' : 'rgba(226,27,77,0.16)' },
+  ]
+
   return (
     <div style={{
-      background: 'var(--navy)',
-      borderRadius: 'var(--radius-lg)',
-      padding: '1.5rem 2rem',
-      marginBottom: '1.75rem',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
       position: 'relative',
+      borderRadius: 'var(--radius-lg)',
+      padding: '2.25rem 2.5rem 2rem',
+      marginBottom: '1.75rem',
       overflow: 'hidden',
-      boxShadow: 'var(--shadow-md)',
+      background: 'rgba(255,255,255,0.78)',
+      backdropFilter: 'blur(24px)',
+      border: '1px solid rgba(255,255,255,0.92)',
+      boxShadow: '0 4px 40px rgba(79,110,247,0.09), 0 1px 0 rgba(255,255,255,0.9) inset',
+      animation: 'fadeUp 0.4s ease both',
     }}>
-      <div style={{ position: 'absolute', right: -20, top: -30, width: 200, height: 200, borderRadius: '50%', background: 'rgba(226,27,77,0.07)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', right: 60, bottom: -50, width: 140, height: 140, borderRadius: '50%', background: 'rgba(226,27,77,0.04)', pointerEvents: 'none' }} />
+      {/* Subtle gradient wash */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(79,110,247,0.04) 0%, rgba(124,58,237,0.025) 50%, rgba(12,166,120,0.025) 100%)', pointerEvents: 'none' }} />
+
+      {/* Floating dots (Apple scattered elements) */}
+      {HERO_DOTS.map((dot, i) => (
+        <div key={i} style={{
+          position: 'absolute',
+          width: dot.s, height: dot.s,
+          borderRadius: '50%',
+          background: dot.c,
+          top: dot.t, left: dot.l,
+          animation: `heroFloat ${dot.dur} ease-in-out ${dot.d} infinite`,
+          pointerEvents: 'none',
+        }} />
+      ))}
+      {/* Floating rings */}
+      <div style={{ position: 'absolute', top: '18%', right: '22%', width: 36, height: 36, borderRadius: '50%', border: '2px solid rgba(79,110,247,0.12)', animation: 'heroFloat 9s ease-in-out 0.3s infinite', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: '22%', left: '32%', width: 22, height: 22, borderRadius: '50%', border: '2px solid rgba(124,58,237,0.12)', animation: 'heroFloat 7.2s ease-in-out 1.9s infinite', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: '55%', right: '38%', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(12,166,120,0.14)', animation: 'heroFloat 6.5s ease-in-out 3.1s infinite', pointerEvents: 'none' }} />
+
+      {/* MAXD wordmark — top right */}
+      <div style={{ position: 'absolute', top: '1.5rem', right: '1.75rem', zIndex: 1 }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 11, letterSpacing: '0.20em', fontWeight: 700, color: 'var(--navy)', opacity: 0.15 }}>MAXD</div>
+      </div>
+
+      {/* Content */}
       <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ fontFamily: 'var(--font-heading)', color: 'rgba(255,255,255,0.32)', fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 7, fontWeight: 500 }}>
+        {/* Date line */}
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 14, fontFamily: 'var(--font-body)' }}>
           {weekday} · {date}
         </div>
-        <div style={{ fontFamily: 'var(--font-heading)', color: '#FFFFFF', fontSize: 22, letterSpacing: '0.08em', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1.1 }}>
-          Go Beyond Your Limits
+
+        {/* Giant greeting */}
+        <div style={{ marginBottom: '1.75rem' }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(26px, 3.5vw, 40px)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--navy)', lineHeight: 1, marginBottom: 6, opacity: 0.55 }}>
+            {greeting},
+          </div>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(36px, 5vw, 56px)', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: 1 }}>
+            <span style={{ color: 'var(--red)' }}>{firstName}</span>
+            <span style={{ color: 'var(--navy)', opacity: 0.3 }}>.</span>
+          </div>
         </div>
-        <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: 11.5, marginTop: 7, letterSpacing: '0.03em', fontWeight: 400 }}>
-          Creatine Gummies · U.S. Manufactured · Third-Party Tested
-        </div>
-      </div>
-      <div style={{ position: 'relative', zIndex: 1, textAlign: 'right', flexShrink: 0 }}>
-        <svg width="52" height="38" viewBox="0 0 24 18" fill="none">
-          <path d="M0 18 L8 2 L12 9 L14 6 L24 18Z" fill="rgba(226,27,77,0.9)"/>
-          <path d="M12 9 L14 6 L24 18 L12 18Z" fill="rgba(226,27,77,0.45)"/>
-        </svg>
-        <div style={{ fontFamily: 'var(--font-heading)', color: 'rgba(255,255,255,0.88)', fontSize: 13, letterSpacing: '0.18em', fontWeight: 700, marginTop: 4 }}>
-          MAXD
+
+        {/* KPI pills */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {kpis.map(kpi => (
+            <div key={kpi.label} style={{
+              padding: '7px 18px',
+              borderRadius: 50,
+              background: kpi.bg,
+              border: `1px solid ${kpi.border}`,
+              display: 'flex', alignItems: 'center', gap: 8,
+              backdropFilter: 'blur(8px)',
+            }}>
+              <span style={{ fontSize: 17, fontWeight: 700, fontFamily: 'var(--font-heading)', color: kpi.color, letterSpacing: '0.02em', lineHeight: 1 }}>
+                {kpi.value}
+              </span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                {kpi.label}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -439,17 +505,17 @@ export default function Dashboard() {
 
   return (
     <div>
-      <BrandBanner />
+      <HeroBanner biz={biz} user={user} />
       {isFirstTime && <GettingStarted />}
 
       {/* Business KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 10, marginBottom: 10 }}>
-        <StatCard label="Monthly Revenue"  value={moneyFmt(biz.monthlyRevenue)}            sub="latest month"     accent="var(--green)" />
-        <StatCard label="Net Profit"       value={moneyFmt(biz.netProfit)}                 sub="after expenses"   accent={biz.netProfit >= 0 ? 'var(--green)' : 'var(--red)'} />
-        <StatCard label="Cash on Hand"     value={moneyFmt(biz.cashOnHand)}                sub="current balance"  accent="var(--navy)" />
-        <StatCard label="Total Followers"  value={fmtFollowers(biz.totalFollowers)}        sub="all platforms"    accent="var(--purple)" />
-        <StatCard label="Active Campaigns" value={biz.activeCampaigns}                     sub={`$${Math.round(biz.totalAdSpend).toLocaleString()} spend`} accent="var(--blue)" />
-        <StatCard label="Low Stock Alerts" value={biz.lowStockItems.length}                sub="need reorder"     accent={biz.lowStockItems.length > 0 ? 'var(--red)' : 'var(--green)'} />
+        <StatCard label="Monthly Revenue"  value={moneyFmt(biz.monthlyRevenue)}            sub="latest month"     accent="var(--green)"  icon="💰" />
+        <StatCard label="Net Profit"       value={moneyFmt(biz.netProfit)}                 sub="after expenses"   accent={biz.netProfit >= 0 ? 'var(--green)' : 'var(--red)'}  icon="📈" />
+        <StatCard label="Cash on Hand"     value={moneyFmt(biz.cashOnHand)}                sub="current balance"  accent="var(--blue)"   icon="🏦" />
+        <StatCard label="Total Followers"  value={fmtFollowers(biz.totalFollowers)}        sub="all platforms"    accent="var(--purple)" icon="👥" />
+        <StatCard label="Active Campaigns" value={biz.activeCampaigns}                     sub={`$${Math.round(biz.totalAdSpend).toLocaleString()} spend`} accent="var(--blue)" icon="📣" />
+        <StatCard label="Low Stock Alerts" value={biz.lowStockItems.length}                sub="need reorder"     accent={biz.lowStockItems.length > 0 ? 'var(--red)' : 'var(--green)'} icon="📦" />
       </div>
 
       {/* Alerts */}
@@ -481,12 +547,12 @@ export default function Dashboard() {
 
       {/* Content KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 10, marginBottom: '1.75rem' }}>
-        <StatCard label="Scripts Active"    value={activeScripts}         sub="in progress"     accent="var(--blue)" />
-        <StatCard label="Scripts Ready"     value={readyScripts}          sub="ready to film"   accent="var(--green)" />
-        <StatCard label="Upcoming Shoots"   value={upcomingShoots.length} sub="next 14 days"    accent="var(--red)" />
-        <StatCard label="Content Scheduled" value={scheduledUpcoming}     sub="upcoming posts"  accent="var(--purple)" />
-        <StatCard label="Pending Review"    value={pendingItems.length}   sub="in action queue" accent={pendingItems.length > 0 ? 'var(--amber)' : 'var(--green)'} />
-        <StatCard label="Sent This Month"   value={sentThisMonth}         sub={thisMonth.replace('-','/')} accent="var(--navy)" />
+        <StatCard label="Scripts Active"    value={activeScripts}         sub="in progress"     accent="var(--blue)"   icon="✍️" />
+        <StatCard label="Scripts Ready"     value={readyScripts}          sub="ready to film"   accent="var(--green)"  icon="🎬" />
+        <StatCard label="Upcoming Shoots"   value={upcomingShoots.length} sub="next 14 days"    accent="var(--red)"    icon="📅" />
+        <StatCard label="Content Scheduled" value={scheduledUpcoming}     sub="upcoming posts"  accent="var(--purple)" icon="🗓" />
+        <StatCard label="Pending Review"    value={pendingItems.length}   sub="in action queue" accent={pendingItems.length > 0 ? 'var(--amber)' : 'var(--green)'} icon="☑️" />
+        <StatCard label="Sent This Month"   value={sentThisMonth}         sub={thisMonth.replace('-','/')} accent="var(--blue)" icon="✅" />
       </div>
 
       {/* 2-col grid */}
