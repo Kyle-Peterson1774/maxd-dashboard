@@ -266,7 +266,8 @@ function ConnectModal({ serviceKey, integration, onClose, onSave }) {
               </button>
               <button onClick={handleSave} disabled={!canSave || saving} style={{
                 fontSize: 12, padding: '7px 18px', borderRadius: 6,
-                border: 'none', background: canSave && !saving ? integration.color : 'var(--border)',
+                border: 'none',
+                background: canSave && !saving ? 'var(--navy)' : 'var(--border)',
                 color: '#fff', cursor: canSave && !saving ? 'pointer' : 'default',
                 fontWeight: 700, letterSpacing: '0.03em', minWidth: 100, transition: 'all 0.15s',
               }}>
@@ -337,9 +338,9 @@ function IntegrationCard({ serviceKey, integration, onOpen }) {
           onClick={() => onOpen(serviceKey)}
           style={{
             fontSize: 11, padding: '6px 14px', borderRadius: 6,
-            border: `1.5px solid ${connected ? 'var(--border-mid)' : integration.color}`,
-            background: connected ? 'var(--surface)' : integration.color,
-            color: connected ? 'var(--text-secondary)' : 'var(--white)',
+            border: connected ? '1.5px solid var(--border-mid)' : '1.5px solid var(--navy)',
+            background: connected ? 'var(--surface)' : 'var(--navy)',
+            color: connected ? 'var(--text-secondary)' : '#fff',
             cursor: 'pointer', fontWeight: 600, letterSpacing: '0.04em',
             transition: 'all 0.15s',
           }}
